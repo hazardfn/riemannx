@@ -2,7 +2,7 @@ Riemannx
 ========
 
 Riemannx is a simple riemann client with UDP and TCP support, it also supports
-a combined backend which favours UDP when possible and fallsback to TCP when
+a combined backend which favours UDP when possible and falls back to TCP when
 not (based on your max UDP packet size).
 
 I was having a lot of performance problems with the elixir-riemann client 
