@@ -61,15 +61,15 @@ defmodule Riemannx.Connections.Combined do
                        state.tcp_port, 
                        [:binary, nodelay: true, packet: 4, active: true, reuseaddr: true])
     tcp_socket
-  catch
-    _ -> try_tcp_connect(state)
+  rescue
+    MatchError -> try_tcp_connect(state)
   end
 
   defp try_udp_connect do
     {:ok, udp_socket} = :gen_udp.open(0, [:binary])
     udp_socket
-  catch
-    _ -> try_udp_connect()
+  rescue
+    MatchError -> try_udp_connect()
   end
 
   # ===========================================================================

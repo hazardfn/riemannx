@@ -51,8 +51,8 @@ defmodule Riemannx.Connections.TCP do
                        state.tcp_port, 
                        [:binary, nodelay: true, packet: 4, active: true, reuseaddr: true])
     tcp_socket
-  catch
-    _ -> try_tcp_connect(state)
+  rescue
+    MatchError -> try_tcp_connect(state)
   end
 
   # ===========================================================================

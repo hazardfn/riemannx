@@ -52,8 +52,8 @@ defmodule Riemannx.Connections.UDP do
   defp try_udp_connect do
     {:ok, udp_socket} = :gen_udp.open(0, [:binary])
     udp_socket
-  catch
-    _ -> try_udp_connect()
+  rescue
+    MatchError -> try_udp_connect()
   end
 
   # ===========================================================================
@@ -83,7 +83,7 @@ defmodule Riemannx.Connections.UDP do
     }
 
     udp_socket = try_udp_connect()
-    
+
     {:noreply, %{state | udp_socket: udp_socket}}
   end
   def handle_cast({:send_msg, msg}, state) do
