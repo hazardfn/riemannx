@@ -23,7 +23,7 @@ defmodule Riemannx do
   end
 
   defp enqueue(message) do
-    worker = :poolboy.checkout(:riemannx_pool)
+    worker = :poolboy.checkout(:riemannx_pool, false, :infinity)
     GenServer.cast(worker, {:send_msg, message})
   end
 end
