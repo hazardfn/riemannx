@@ -26,7 +26,7 @@ defmodule Riemannx do
   defp enqueue(message) do
     :poolboy.transaction(
       :riemannx_pool,
-      fn(pid) -> GenServer.cast(pid, {:send_msg, message}) end,
+      fn(pid) -> :ok = GenServer.call(pid, {:send_msg, message}) end,
       :infinity
     )
   end

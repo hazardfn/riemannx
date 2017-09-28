@@ -70,6 +70,15 @@ defmodule Riemannx.Connections.Combined do
   def handle_call({:max_udp_size, value}, _from, state) when is_integer(value) do 
     {:reply, value, %{state | max_udp_size: value}}
   end
+  def handle_call({:send_msg, msg}, _from, state) do
+    encoded = Msg.encode(msg)
+    if byte_size(encoded) > state.max_udp_size do
+      :gen_tcp.send(state.tcp_socket, encoded)
+    else
+      :gen_udp.send(state.udp_socket, state.host, state.udp_port, encoded)
+    end
+    {:reply, :ok, state}
+  end
 
   def handle_cast({:init, args}, _state) do
     state = %Riemannx.Connections.Combined{
@@ -84,15 +93,6 @@ defmodule Riemannx.Connections.Combined do
                        [:binary, nodelay: true, packet: 4, active: true])
     {:ok, udp_socket} = :gen_udp.open(0, [:binary])
     {:noreply, %{state | tcp_socket: tcp_socket, udp_socket: udp_socket}}
-  end
-  def handle_cast({:send_msg, msg}, state) do
-    encoded = Msg.encode(msg)
-    if byte_size(encoded) > state.max_udp_size do
-      :gen_tcp.send(state.tcp_socket, encoded)
-    else
-      :gen_udp.send(state.udp_socket, state.host, state.udp_port, encoded)
-    end
-    {:noreply, state}
   end
   
   def handle_info({:tcp_closed, _socket}, state) do 

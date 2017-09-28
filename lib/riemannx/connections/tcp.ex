@@ -57,6 +57,12 @@ defmodule Riemannx.Connections.TCP do
     {:ok, %Riemannx.Connections.TCP{}}
   end
 
+  def handle_call({:send_msg, msg}, _from, state) do
+    encoded = Msg.encode(msg)
+    :ok = :gen_tcp.send(state.tcp_socket, encoded)
+    {:reply, :ok,  state}
+  end
+
   def handle_cast({:init, args}, _state) do
     state = %Riemannx.Connections.TCP{
       host: args[:host] |> to_charlist,
@@ -67,11 +73,6 @@ defmodule Riemannx.Connections.TCP do
                          state.tcp_port, 
                          [:binary, nodelay: true, packet: 4, active: true])
     {:noreply, %{state | tcp_socket: tcp_socket}}
-  end
-  def handle_cast({:send_msg, msg}, state) do
-    encoded = Msg.encode(msg)
-    :ok = :gen_tcp.send(state.tcp_socket, encoded)
-    {:noreply, state}
   end
 
   def handle_info({:tcp_closed, _socket}, state) do 
