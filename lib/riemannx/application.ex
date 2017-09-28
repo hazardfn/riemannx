@@ -8,7 +8,8 @@ defmodule Riemannx.Application do
       name: {:local, pool_name()},
       worker_module: worker_module(),
       size: pool_size(),
-      max_overflow: max_overflow()
+      max_overflow: max_overflow(),
+      strategy: strategy()
     ]    
     
     children = [
@@ -28,6 +29,7 @@ defmodule Riemannx.Application do
 
   defp pool_name, do: :riemannx_pool
   defp pool_size, do: Application.get_env(:riemannx, :pool_size, 10)
+  defp strategy, do: Application.get_env(:riemannx, :strategy, :fifo)
   defp max_overflow, do: Application.get_env(:riemannx, :max_overflow, 20)
   defp worker_module, do: Application.get_env(:riemannx, :worker_module, Riemannx.Connections.Combined)
   defp host, do: Application.get_env(:riemannx, :host, "localhost")
