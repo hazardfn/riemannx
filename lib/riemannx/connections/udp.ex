@@ -46,7 +46,16 @@ defmodule Riemannx.Connections.UDP do
     udp_socket: :gen_udp.socket() | nil
   }
   
-  
+  # ===========================================================================
+  # Private
+  # ===========================================================================
+  defp try_udp_connect do
+    {:ok, udp_socket} = :gen_udp.open(0, [:binary])
+    udp_socket
+  catch
+    _ -> try_udp_connect()
+  end
+
   # ===========================================================================
   # GenServer Callbacks
   # ===========================================================================
@@ -72,7 +81,9 @@ defmodule Riemannx.Connections.UDP do
       udp_port: args[:udp_port],
       max_udp_size: args[:max_udp_size]
     }
-    {:ok, udp_socket} = :gen_udp.open(0, [:binary])
+
+    udp_socket = try_udp_connect()
+    
     {:noreply, %{state | udp_socket: udp_socket}}
   end
   def handle_cast({:send_msg, msg}, state) do

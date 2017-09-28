@@ -42,7 +42,19 @@ defmodule Riemannx.Connections.TCP do
     tcp_socket: :gen_tcp.socket() | nil
   }
   
-  
+  # ===========================================================================
+  # Private
+  # ===========================================================================
+  defp try_tcp_connect(state) do
+    {:ok, tcp_socket} = 
+      :gen_tcp.connect(state.host, 
+                       state.tcp_port, 
+                       [:binary, nodelay: true, packet: 4, active: true, reuseaddr: true])
+    tcp_socket
+  catch
+    _ -> try_tcp_connect(state)
+  end
+
   # ===========================================================================
   # GenServer Callbacks
   # ===========================================================================
@@ -63,10 +75,9 @@ defmodule Riemannx.Connections.TCP do
       host: args[:host] |> to_charlist,
       tcp_port: args[:tcp_port]
     }
-    {:ok, tcp_socket} = 
-        :gen_tcp.connect(state.host, 
-                         state.tcp_port, 
-                         [:binary, nodelay: true, packet: 4, active: true, reuseaddr: true])
+
+    tcp_socket = try_tcp_connect(state)
+
     {:noreply, %{state | tcp_socket: tcp_socket}}
   end
   def handle_cast({:send_msg, msg}, state) do

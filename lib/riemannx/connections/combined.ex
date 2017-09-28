@@ -52,7 +52,26 @@ defmodule Riemannx.Connections.Combined do
     udp_socket: :gen_udp.socket() | nil
   }
   
-  
+  # ===========================================================================
+  # Private
+  # ===========================================================================
+  defp try_tcp_connect(state) do
+    {:ok, tcp_socket} = 
+      :gen_tcp.connect(state.host, 
+                       state.tcp_port, 
+                       [:binary, nodelay: true, packet: 4, active: true, reuseaddr: true])
+    tcp_socket
+  catch
+    _ -> try_tcp_connect(state)
+  end
+
+  defp try_udp_connect do
+    {:ok, udp_socket} = :gen_udp.open(0, [:binary])
+    udp_socket
+  catch
+    _ -> try_udp_connect()
+  end
+
   # ===========================================================================
   # GenServer Callbacks
   # ===========================================================================
@@ -79,11 +98,10 @@ defmodule Riemannx.Connections.Combined do
       udp_port: args[:udp_port],
       max_udp_size: args[:max_udp_size]
     }
-    {:ok, tcp_socket} = 
-      :gen_tcp.connect(state.host, 
-                       state.tcp_port, 
-                       [:binary, nodelay: true, packet: 4, active: true, reuseaddr: true])
-    {:ok, udp_socket} = :gen_udp.open(0, [:binary])
+    
+    tcp_socket = try_tcp_connect(state)
+    udp_socket = try_udp_connect()
+
     {:noreply, %{state | tcp_socket: tcp_socket, udp_socket: udp_socket}}
   end
   def handle_cast({:send_msg, msg}, state) do

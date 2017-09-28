@@ -2,7 +2,6 @@ defmodule RiemannxTest.Combined do
   use ExUnit.Case, async: false
   alias Riemannx.Proto.Msg
   alias Riemannx.Proto.Event
-  alias Riemannx.Errors.InvalidMetricError
 
   setup_all do
     Application.load(:riemannx)
