@@ -53,14 +53,9 @@ defmodule Riemannx.Connections.TCP do
   
   @spec init(Keyword.t()) :: {:ok, t()}
   def init(args) do
+    Process.flag(:trap_exit, true)
     GenServer.cast(self(), {:init, args})
     {:ok, %Riemannx.Connections.TCP{}}
-  end
-
-  def handle_call({:send_msg, msg}, _from, state) do
-    encoded = Msg.encode(msg)
-    :ok = :gen_tcp.send(state.tcp_socket, encoded)
-    {:reply, :ok,  state}
   end
 
   def handle_cast({:init, args}, _state) do
@@ -74,6 +69,14 @@ defmodule Riemannx.Connections.TCP do
                          [:binary, nodelay: true, packet: 4, active: true])
     {:noreply, %{state | tcp_socket: tcp_socket}}
   end
+  def handle_cast({:send_msg, msg}, state) do
+    msg = Riemannx.create_events_msg(msg)
+    encoded = Msg.encode(msg)
+    :ok = :gen_tcp.send(state.tcp_socket, encoded)
+    :poolboy.checkin(:riemannx_pool, self())
+    {:noreply, state}
+  end
+
 
   def handle_info({:tcp_closed, _socket}, state) do 
     {:stop, :tcp_closed, %{state | tcp_socket: nil}}

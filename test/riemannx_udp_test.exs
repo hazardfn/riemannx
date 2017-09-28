@@ -60,20 +60,6 @@ defmodule RiemannxTest.UDP do
     assert_events_received(events)
   end
 
-  test "Invalid metrics raise InvalidMetric error" do
-    assert_raise InvalidMetricError, fn ->
-      Riemannx.send_async(metric: "hello")
-    end
-
-    assert_raise InvalidMetricError, fn ->
-      Riemannx.send_async(metric: %{count: 1})
-    end
-
-    assert_raise InvalidMetricError, fn ->
-      Riemannx.send_async(metric: [1, 2, 3])
-    end
-  end
-
   defp assert_events_received(events) do
     receive do
       {msg, :udp} -> assert Event.list_to_events(events) == Msg.decode(msg).events

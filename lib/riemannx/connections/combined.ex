@@ -63,21 +63,13 @@ defmodule Riemannx.Connections.Combined do
   
   @spec init(Keyword.t()) :: {:ok, t()}
   def init(args) do
+    Process.flag(:trap_exit, true)
     GenServer.cast(self(), {:init, args})
     {:ok, %Riemannx.Connections.Combined{}}
   end
   
   def handle_call({:max_udp_size, value}, _from, state) when is_integer(value) do 
     {:reply, value, %{state | max_udp_size: value}}
-  end
-  def handle_call({:send_msg, msg}, _from, state) do
-    encoded = Msg.encode(msg)
-    if byte_size(encoded) > state.max_udp_size do
-      :gen_tcp.send(state.tcp_socket, encoded)
-    else
-      :gen_udp.send(state.udp_socket, state.host, state.udp_port, encoded)
-    end
-    {:reply, :ok, state}
   end
 
   def handle_cast({:init, args}, _state) do
@@ -94,7 +86,18 @@ defmodule Riemannx.Connections.Combined do
     {:ok, udp_socket} = :gen_udp.open(0, [:binary])
     {:noreply, %{state | tcp_socket: tcp_socket, udp_socket: udp_socket}}
   end
-  
+  def handle_cast({:send_msg, msg}, state) do
+    msg = Riemannx.create_events_msg(msg)
+    encoded = Msg.encode(msg)
+    if byte_size(encoded) > state.max_udp_size do
+      :gen_tcp.send(state.tcp_socket, encoded)
+    else
+      :gen_udp.send(state.udp_socket, state.host, state.udp_port, encoded)
+    end
+    :poolboy.checkin(:riemannx_pool, self())
+    {:noreply, state}
+  end
+
   def handle_info({:tcp_closed, _socket}, state) do 
     {:stop, :tcp_closed, %{state | tcp_socket: nil, udp_socket: nil}}
   end

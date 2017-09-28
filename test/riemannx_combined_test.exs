@@ -61,20 +61,6 @@ defmodule RiemannxTest.Combined do
     assert_events_received(events)
   end
 
-  test "Invalid metrics raise InvalidMetric error" do
-    assert_raise InvalidMetricError, fn ->
-      Riemannx.send_async(metric: "hello")
-    end
-
-    assert_raise InvalidMetricError, fn ->
-      Riemannx.send_async(metric: %{count: 1})
-    end
-
-    assert_raise InvalidMetricError, fn ->
-      Riemannx.send_async(metric: [1, 2, 3])
-    end
-  end
-
   test "The message is still sent given a small max_udp_size" do
     events = [
       [

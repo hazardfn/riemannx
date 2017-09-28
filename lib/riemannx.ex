@@ -14,20 +14,16 @@ defmodule Riemannx do
 
   def send_async(events) do
     events 
-    |> create_events_msg()
     |> enqueue()
   end
 
-  defp create_events_msg(events) do
+  def create_events_msg(events) do
     [events: Event.list_to_events(events)]
     |> Msg.new
   end
 
   defp enqueue(message) do
-    :poolboy.transaction(
-      :riemannx_pool,
-      fn(pid) -> :ok = GenServer.call(pid, {:send_msg, message}) end,
-      :infinity
-    )
+    worker = :poolboy.checkout(:riemannx_pool)
+    GenServer.cast(worker, {:send_msg, message})
   end
 end
