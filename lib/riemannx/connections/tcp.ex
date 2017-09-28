@@ -66,7 +66,7 @@ defmodule Riemannx.Connections.TCP do
     {:ok, tcp_socket} = 
         :gen_tcp.connect(state.host, 
                          state.tcp_port, 
-                         [:binary, nodelay: true, packet: 4, active: true])
+                         [:binary, nodelay: true, packet: 4, active: true, reuseaddr: true])
     {:noreply, %{state | tcp_socket: tcp_socket}}
   end
   def handle_cast({:send_msg, msg}, state) do

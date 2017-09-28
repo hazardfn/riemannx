@@ -82,7 +82,7 @@ defmodule Riemannx.Connections.Combined do
     {:ok, tcp_socket} = 
       :gen_tcp.connect(state.host, 
                        state.tcp_port, 
-                       [:binary, nodelay: true, packet: 4, active: true])
+                       [:binary, nodelay: true, packet: 4, active: true, reuseaddr: true])
     {:ok, udp_socket} = :gen_udp.open(0, [:binary])
     {:noreply, %{state | tcp_socket: tcp_socket, udp_socket: udp_socket}}
   end
