@@ -81,7 +81,6 @@ defmodule Riemannx.Connections.TCP do
     {:noreply, %{state | tcp_socket: tcp_socket}}
   end
   def handle_cast({:send_msg, msg}, state) do
-    msg = Riemannx.create_events_msg(msg)
     encoded = Msg.encode(msg)
     :ok = :gen_tcp.send(state.tcp_socket, encoded)
     :poolboy.checkin(:riemannx_pool, self())

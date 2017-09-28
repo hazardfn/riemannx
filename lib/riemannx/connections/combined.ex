@@ -105,7 +105,6 @@ defmodule Riemannx.Connections.Combined do
     {:noreply, %{state | tcp_socket: tcp_socket, udp_socket: udp_socket}}
   end
   def handle_cast({:send_msg, msg}, state) do
-    msg = Riemannx.create_events_msg(msg)
     encoded = Msg.encode(msg)
     if byte_size(encoded) > state.max_udp_size do
       :gen_tcp.send(state.tcp_socket, encoded)

@@ -14,6 +14,7 @@ defmodule Riemannx do
 
   def send_async(events) do
     events 
+    |> create_events_msg()
     |> enqueue()
   end
 

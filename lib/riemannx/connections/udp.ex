@@ -87,7 +87,6 @@ defmodule Riemannx.Connections.UDP do
     {:noreply, %{state | udp_socket: udp_socket}}
   end
   def handle_cast({:send_msg, msg}, state) do
-    msg = Riemannx.create_events_msg(msg)
     encoded = Msg.encode(msg)
     unless byte_size(encoded) > state.max_udp_size do
       :ok = :gen_udp.send(state.udp_socket, state.host, state.udp_port, encoded)
