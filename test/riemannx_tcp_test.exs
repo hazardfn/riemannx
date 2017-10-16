@@ -6,6 +6,7 @@ defmodule RiemannxTest.TCP do
   setup_all do
     Application.load(:riemannx)
     Application.put_env(:riemannx, :worker_module, Riemannx.Connections.TCP)
+    :ok
   end
 
   setup do

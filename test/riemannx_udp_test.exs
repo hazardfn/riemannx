@@ -6,6 +6,7 @@ defmodule RiemannxTest.UDP do
   setup_all do
     Application.load(:riemannx)
     Application.put_env(:riemannx, :worker_module, Riemannx.Connections.UDP)
+    :ok
   end
 
   setup do

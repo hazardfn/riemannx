@@ -5,6 +5,8 @@ defmodule RiemannxTest.Combined do
 
   setup_all do
     Application.load(:riemannx)
+    Application.put_env(:riemannx, :worker_module, Riemannx.Connections.Combined)
+    :ok
   end
 
   setup do

@@ -9,7 +9,7 @@ defmodule RiemannxTest.Servers.TCP do
   end
 
   def stop(server) do
-    Process.exit(server, :shutdown)
+    GenServer.stop(server, :normal)
   end
 
   def init(state) do
@@ -36,6 +36,6 @@ defmodule RiemannxTest.Servers.TCP do
   end
 
   def terminate(_reason, state) do
-    :gen_tcp.close(state.socket)
+    if state.socket, do: :gen_tcp.close(state.socket)
   end
 end
