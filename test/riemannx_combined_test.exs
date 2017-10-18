@@ -15,9 +15,9 @@ defmodule RiemannxTest.Combined do
     Application.ensure_all_started(:riemannx)
 
     on_exit(fn() ->
-      Application.stop(:riemannx)
       RiemannxTest.Servers.TCP.stop(tcp_server)
       RiemannxTest.Servers.UDP.stop(udp_server)
+      Application.stop(:riemannx)
     end)
 
     [tcp_server: tcp_server, udp_server: udp_server]

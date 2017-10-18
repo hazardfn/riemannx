@@ -14,8 +14,8 @@ defmodule RiemannxTest.TCP do
     Application.ensure_all_started(:riemannx)
 
     on_exit(fn() ->
-      Application.stop(:riemannx)
       RiemannxTest.Servers.TCP.stop(server)
+      Application.stop(:riemannx)
     end)
 
     [server: server]

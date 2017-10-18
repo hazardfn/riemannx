@@ -14,8 +14,8 @@ defmodule RiemannxTest.UDP do
     Application.ensure_all_started(:riemannx)
 
     on_exit(fn() ->
-      Application.stop(:riemannx)
       RiemannxTest.Servers.UDP.stop(server)
+      Application.stop(:riemannx)
     end)
 
     [server: server]
