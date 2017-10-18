@@ -6,6 +6,7 @@ defmodule RiemannxTest.TCP do
   setup_all do
     Application.load(:riemannx)
     Application.put_env(:riemannx, :worker_module, Riemannx.Connections.TCP)
+    :ok
   end
 
   setup do
@@ -13,8 +14,8 @@ defmodule RiemannxTest.TCP do
     Application.ensure_all_started(:riemannx)
 
     on_exit(fn() ->
-      Application.stop(:riemannx)
       RiemannxTest.Servers.TCP.stop(server)
+      Application.stop(:riemannx)
     end)
 
     [server: server]
