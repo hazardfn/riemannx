@@ -9,7 +9,8 @@ defmodule RiemannxTest.Servers.TCP do
   end
 
   def stop(server) do
-    Process.exit(server, :shutdown)
+    GenServer.call(server, :cleanup)
+    GenServer.stop(server, :normal)
   end
 
   def init(state) do
@@ -20,6 +21,10 @@ defmodule RiemannxTest.Servers.TCP do
     port = Application.get_env(:riemannx, :tcp_port, 5555)
     {:ok, socket} = :gen_tcp.listen(port, [:binary, packet: 4, active: true, reuseaddr: true])
     {:reply, :ok, %{state | socket: socket}}
+  end
+  def handle_call(:cleanup, _from, state) do
+    if state.socket, do: :gen_tcp.close(state.socket)
+    {:reply, :ok, %{state | socket: nil}}
   end
 
   def handle_cast(:accept, %{test_pid: _pid, socket: socket} = state) do
@@ -33,9 +38,5 @@ defmodule RiemannxTest.Servers.TCP do
   end
   def handle_info(_msg, state) do
     {:noreply, state}
-  end
-
-  def terminate(_reason, state) do
-    :gen_tcp.close(state.socket)
   end
 end

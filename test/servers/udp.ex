@@ -8,7 +8,8 @@ defmodule RiemannxTest.Servers.UDP do
   end
   
   def stop(server) do
-    Process.exit(server, :shutdown)
+    GenServer.call(server, :cleanup)
+    GenServer.stop(server, :normal)
   end
   
   def init(state) do
@@ -20,16 +21,16 @@ defmodule RiemannxTest.Servers.UDP do
     {:ok, socket} = :gen_udp.open(port, [:binary, active: true])
     {:reply, :ok, %{state | socket: socket}}
   end
-  
+  def handle_call(:cleanup, _from, state) do
+    if state.socket, do: :gen_udp.close(state.socket)
+    {:reply, :ok, %{state | socket: nil}}
+  end
+
   def handle_info({:udp, _, _, _, msg}, state) do
     send(state.test_pid, {msg, :udp})
     {:noreply, state}
   end
   def handle_info(_msg, state) do
     {:noreply, state}
-  end
-  
-  def terminate(_reason, state) do
-    :gen_udp.close(state.socket)
-  end
+  end  
 end

@@ -6,6 +6,7 @@ defmodule RiemannxTest.UDP do
   setup_all do
     Application.load(:riemannx)
     Application.put_env(:riemannx, :worker_module, Riemannx.Connections.UDP)
+    :ok
   end
 
   setup do
@@ -13,8 +14,8 @@ defmodule RiemannxTest.UDP do
     Application.ensure_all_started(:riemannx)
 
     on_exit(fn() ->
-      Application.stop(:riemannx)
       RiemannxTest.Servers.UDP.stop(server)
+      Application.stop(:riemannx)
     end)
 
     [server: server]
