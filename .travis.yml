@@ -19,3 +19,7 @@ script:
   - mix deps.get
   - mix compile
   - mix coveralls.travis
+matrix:
+  exclude:
+  - otp_release: 20
+  - elixir: 1.3.4
