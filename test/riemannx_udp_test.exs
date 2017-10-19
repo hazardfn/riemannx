@@ -1,7 +1,9 @@
 defmodule RiemannxTest.UDP do
   use ExUnit.Case, async: false
+  use PropCheck
+  require IEx
   alias Riemannx.Proto.Msg
-  alias Riemannx.Proto.Event
+  alias RiemannxTest.Property.RiemannXPropTest, as: Prop
 
   setup_all do
     Application.load(:riemannx)
@@ -29,7 +31,7 @@ defmodule RiemannxTest.UDP do
       description: "test"
     ]
     Riemannx.send_async(event)
-    assert_events_received(event)
+    assert assert_events_received(event)
   end
 
   test "send_async/1 can send multiple events" do
@@ -57,13 +59,51 @@ defmodule RiemannxTest.UDP do
       ]
     ]
     Riemannx.send_async(events)
-    assert_events_received(events)
+    assert assert_events_received(events)
   end
 
-  defp assert_events_received(events) do
+  test "send_async/1 ignores UDP requests over the limit" do
+    event = [
+      service: "riemannx-elixir",
+      metric: 1,
+      attributes: [a: 1],
+      description: "test"
+    ]
+    :poolboy.transaction(
+      :riemannx_pool,
+        fn(pid) ->
+          GenServer.call(pid, {:max_udp_size, 1})
+        end,
+      :infinity
+    )
+    Riemannx.send_async(event)
+    assert refute_events_received()
+  end
+
+  property "All reasonable metrics", [:verbose] do
+    numtests(500, forall events in Prop.udp_events(16384) do
+        events = Prop.deconstruct_events(events)
+        Riemannx.send_async(events)
+        (__MODULE__.assert_events_received(events) == true)
+    end)
+  end
+
+  def refute_events_received() do
     receive do
-      {msg, :udp} -> assert Event.list_to_events(events) == Msg.decode(msg).events
-    after 10_000 -> flunk()
+      {_, :udp} -> false
+    after
+      500 -> true
+    end
+  end
+  def assert_events_received(events) do
+    msg     = Riemannx.create_events_msg(events)
+    events  = msg.events |> Enum.map(fn(e) -> %{e | time: 0} end)
+    msg     = %{msg | events: events}
+    encoded = Msg.encode(msg)
+    receive do
+      {^encoded, :udp} -> true
+    after
+      10_000 -> false
     end
   end
 end

@@ -3,17 +3,17 @@ defmodule Riemannx.Connections.UDP do
   Using the UDP connection is not recommended at all, events will be dropped if
   they exceed the max_udp_size set. You can increase this server side and set
   the desired value in this client.
-  
+
   ## Configuration
-  
+
   In order to use the UDP connection all you need to set is the :udp_port
   the server is listening on and the :host name of the server. You will
   also need to set the :max_udp_size setting and it should match the value
   set on the server.
-  
+
   As the UDP only connection is not default you should also specify this as the
   worker module:
-  
+
   ```
   config :riemannx, [
     host: "localhost",
@@ -24,8 +24,9 @@ defmodule Riemannx.Connections.UDP do
   ```
   """
   alias Riemannx.Proto.Msg
+  require Logger
   use GenServer
-  
+
   # ===========================================================================
   # Struct
   # ===========================================================================
@@ -35,7 +36,7 @@ defmodule Riemannx.Connections.UDP do
     max_udp_size: 16384,
     udp_socket: nil
   ]
-  
+
   # ===========================================================================
   # Types
   # ===========================================================================
@@ -45,15 +46,17 @@ defmodule Riemannx.Connections.UDP do
     max_udp_size: integer(),
     udp_socket: :gen_udp.socket() | nil
   }
-  
+
   # ===========================================================================
   # Private
   # ===========================================================================
-  defp try_udp_connect do
-    {:ok, udp_socket} = :gen_udp.open(0, [:binary])
+  defp try_udp_connect(state) do
+    {:ok, udp_socket} = :gen_udp.open(0, [:binary, {:sndbuf, state.max_udp_size}])
     udp_socket
   rescue
-    MatchError -> try_udp_connect()
+    e in MatchError ->
+      Logger.error("[#{__MODULE__}] Unable to connect: #{inspect e}")
+      try_udp_connect(state)
   end
 
   # ===========================================================================
@@ -63,15 +66,15 @@ defmodule Riemannx.Connections.UDP do
   def start_link(args) do
     GenServer.start_link(__MODULE__, args)
   end
-  
+
   @spec init(Keyword.t()) :: {:ok, t()}
   def init(args) do
     Process.flag(:trap_exit, true)
     GenServer.cast(self(), {:init, args})
     {:ok, %Riemannx.Connections.UDP{}}
   end
-  
-  def handle_call({:max_udp_size, value}, _from, state) when is_integer(value) do 
+
+  def handle_call({:max_udp_size, value}, _from, state) when is_integer(value) do
     {:reply, value, %{state | max_udp_size: value}}
   end
 
@@ -82,7 +85,7 @@ defmodule Riemannx.Connections.UDP do
       max_udp_size: args[:max_udp_size]
     }
 
-    udp_socket = try_udp_connect()
+    udp_socket = try_udp_connect(state)
 
     {:noreply, %{state | udp_socket: udp_socket}}
   end
@@ -94,7 +97,7 @@ defmodule Riemannx.Connections.UDP do
     :poolboy.checkin(:riemannx_pool, self())
     {:noreply, state}
   end
-  
+
   def terminate(_reason, state) do
     if state.udp_socket, do: :gen_udp.close(state.udp_socket)
     :ok

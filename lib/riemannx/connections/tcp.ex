@@ -4,9 +4,9 @@ defmodule Riemannx.Connections.TCP do
   sent via TCP as opposed to UDP where you are limit by packet size, there is
   however an overhead penalty using purely TCP which is why the combined
   connection is the recommended default.
-  
+
   ## Configuration
-  
+
   In order to use the TCP connection all you need to set is the :tcp_port
   the server is listening on and the :host name of the server.
 
@@ -22,8 +22,9 @@ defmodule Riemannx.Connections.TCP do
   ```
   """
   alias Riemannx.Proto.Msg
+  require Logger
   use GenServer
-  
+
   # ===========================================================================
   # Struct
   # ===========================================================================
@@ -31,8 +32,8 @@ defmodule Riemannx.Connections.TCP do
     host: "localhost",
     tcp_port: 5555,
     tcp_socket: nil,
-  ] 
-  
+  ]
+
   # ===========================================================================
   # Types
   # ===========================================================================
@@ -41,18 +42,20 @@ defmodule Riemannx.Connections.TCP do
     tcp_port: integer(),
     tcp_socket: :gen_tcp.socket() | nil
   }
-  
+
   # ===========================================================================
   # Private
   # ===========================================================================
   defp try_tcp_connect(state) do
-    {:ok, tcp_socket} = 
-      :gen_tcp.connect(state.host, 
-                       state.tcp_port, 
+    {:ok, tcp_socket} =
+      :gen_tcp.connect(state.host,
+                       state.tcp_port,
                        [:binary, nodelay: true, packet: 4, active: true, reuseaddr: true])
     tcp_socket
   rescue
-    MatchError -> try_tcp_connect(state)
+    e in MatchError ->
+      Logger.error("[#{__MODULE__}] Unable to connect: #{inspect e}")
+      try_tcp_connect(state)
   end
 
   # ===========================================================================
@@ -62,7 +65,7 @@ defmodule Riemannx.Connections.TCP do
   def start_link(args) do
     GenServer.start_link(__MODULE__, args)
   end
-  
+
   @spec init(Keyword.t()) :: {:ok, t()}
   def init(args) do
     Process.flag(:trap_exit, true)
@@ -88,7 +91,7 @@ defmodule Riemannx.Connections.TCP do
   end
 
 
-  def handle_info({:tcp_closed, _socket}, state) do 
+  def handle_info({:tcp_closed, _socket}, state) do
     {:stop, :tcp_closed, %{state | tcp_socket: nil}}
   end
   def handle_info({:tcp, _socket, _msg}, state), do: {:noreply, state}

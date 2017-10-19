@@ -13,7 +13,7 @@ defmodule Riemannx do
   alias Riemannx.Proto.Msg
 
   def send_async(events) do
-    events 
+    events
     |> create_events_msg()
     |> enqueue()
   end
