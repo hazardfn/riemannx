@@ -18,9 +18,14 @@ defmodule RiemannxTest.Servers.TCP do
     {:ok, state}
   end
 
+  defp try_listen(port) do
+    {:ok, _} = :gen_tcp.listen(port, [:binary, packet: 4, active: true, reuseaddr: true])
+  rescue
+    MatchError -> try_listen(port)
+  end
   def handle_call(:listen, _from, state) do
     port = Application.get_env(:riemannx, :tcp_port, 5555)
-    {:ok, socket} = :gen_tcp.listen(port, [:binary, packet: 4, active: true, reuseaddr: true])
+    {:ok, socket} = try_listen(port)
     {:reply, :ok, %{state | socket: socket}}
   end
   def handle_call(:cleanup, _from, state) do

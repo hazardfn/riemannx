@@ -17,10 +17,15 @@ defmodule RiemannxTest.Servers.UDP do
     {:ok, state}
   end
 
+  def try_open(port, max_size) do
+    {:ok, _} = :gen_udp.open(port, [:binary, active: true, recbuf: max_size])
+  rescue
+    MatchError -> try_open(port, max_size)
+  end
   def handle_call(:open, _from, state) do
     port     = Application.get_env(:riemannx, :udp_port, 5555)
     max_size = Application.get_env(:riemannx, :max_udp_size, 16384)
-    {:ok, socket} = :gen_udp.open(port, [:binary, active: true, recbuf: max_size])
+    {:ok, socket} = try_open(port, max_size)
     {:reply, :ok, %{state | socket: socket}}
   end
   def handle_call(:cleanup, _from, state) do
