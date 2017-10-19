@@ -1,7 +1,8 @@
 defmodule RiemannxTest.Combined do
   use ExUnit.Case, async: false
+  use PropCheck
   alias Riemannx.Proto.Msg
-  alias Riemannx.Proto.Event
+  alias RiemannxTest.Property.RiemannXPropTest, as: Prop
 
   setup_all do
     Application.load(:riemannx)
@@ -95,23 +96,40 @@ defmodule RiemannxTest.Combined do
     assert_events_received(events, :tcp)
   end
 
-  defp assert_events_received(events) do
+
+  property "All reasonable metrics", [:verbose] do
+    numtests(500, forall events in Prop.encoded_events() do
+        events = Prop.deconstruct_events(events)
+        Riemannx.send_async(events)
+        (__MODULE__.assert_events_received(events) == true)
+    end)
+  end
+
+  def assert_events_received(events) do
+    msg     = Riemannx.create_events_msg(events)
+    events  = msg.events |> Enum.map(fn(e) -> %{e | time: 0} end)
+    msg     = %{msg | events: events}
+    encoded = Msg.encode(msg)
     receive do
-      {msg, x} ->
-        if byte_size(msg) > Application.get_env(:riemannx, :max_udp_size, 16384) do
+      {^encoded, x} ->
+        if byte_size(encoded) > Application.get_env(:riemannx, :max_udp_size, 16384) do
           assert x == :tcp
-          assert Event.list_to_events(events) == Msg.decode(msg).events
+          true
         else
           assert x == :udp
-          assert Event.list_to_events(events) == Msg.decode(msg).events
-        end          
-    after 10_000 -> flunk()
+          true
+        end
+    after 500 -> false
     end
   end
-  defp assert_events_received(events, x) do
+  def assert_events_received(events, x) do
+    msg     = Riemannx.create_events_msg(events)
+    events  = msg.events |> Enum.map(fn(e) -> %{e | time: 0} end)
+    msg     = %{msg | events: events}
+    encoded = Msg.encode(msg)
     receive do
-      {msg, ^x} -> assert Event.list_to_events(events) == Msg.decode(msg).events
-    after 10_000 -> flunk()
+      {^encoded, ^x} -> true
+    after 500 -> false
     end
   end
 end

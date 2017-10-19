@@ -10,20 +10,21 @@ defmodule Riemannx.Application do
       size: pool_size(),
       max_overflow: max_overflow(),
       strategy: strategy()
-    ]    
-    
+    ]
+
     children = [
-      :poolboy.child_spec(pool_name(), poolboy_config, [host: host(), 
-                                                        tcp_port: tcp_port(), 
+      :poolboy.child_spec(pool_name(), poolboy_config, [host: host(),
+                                                        tcp_port: tcp_port(),
                                                         udp_port: udp_port(),
                                                         max_udp_size: max_udp_size()])
     ]
-    
+
     opts = [
-      strategy: :one_for_one, 
-      name: Riemannx.Supervisor
+      strategy: :one_for_one,
+      name: Riemannx.Supervisor,
+      shutdown: :infinity
     ]
-    
+
     Supervisor.start_link(children, opts)
   end
 

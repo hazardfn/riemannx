@@ -8,11 +8,11 @@ Riemannx is a simple riemann client with UDP and TCP support, it also supports
 a combined backend which favours UDP when possible and falls back to TCP when
 not (based on your max UDP packet size).
 
-I was having a lot of performance problems with the elixir-riemann client 
+I was having a lot of performance problems with the elixir-riemann client
 currently available so decided to go back to basics with good old fashioned
 pool boy, UDP support is also a plus.
 
-This is a functional WIP and haven't set up any pipelines as of yet, 
+This is a functional WIP and haven't set up any pipelines as of yet,
 watch this space.
 
 ### Acknowledgements
