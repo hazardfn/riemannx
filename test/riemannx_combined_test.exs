@@ -119,7 +119,7 @@ defmodule RiemannxTest.Combined do
           assert x == :udp
           true
         end
-    after 500 -> false
+    after 10_000 -> false
     end
   end
   def assert_events_received(events, x) do
@@ -129,7 +129,7 @@ defmodule RiemannxTest.Combined do
     encoded = Msg.encode(msg)
     receive do
       {^encoded, ^x} -> true
-    after 500 -> false
+    after 10_000 -> false
     end
   end
 end

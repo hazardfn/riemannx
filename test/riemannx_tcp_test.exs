@@ -77,7 +77,7 @@ defmodule RiemannxTest.TCP do
     receive do
       {^encoded, :tcp} -> true
     after
-      500 -> false
+      10_000 -> false
     end
   end
 end

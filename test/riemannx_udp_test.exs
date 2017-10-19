@@ -103,7 +103,7 @@ defmodule RiemannxTest.UDP do
     receive do
       {^encoded, :udp} -> true
     after
-      500 -> false
+      10_000 -> false
     end
   end
 end
