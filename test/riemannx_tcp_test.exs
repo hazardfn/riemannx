@@ -83,7 +83,7 @@ defmodule RiemannxTest.TCP do
       host: "localhost" |> to_charlist,
       tcp_port: 5554,
       #:erlang.list_to_port is better but only in 20.
-      socket: :erlang.ports |> Enum.max
+      socket: RiemannxTest.Utils.term_to_port("#Port<0.9999>")
     }
     refute :ok == Client.handle_call({:send_msg, <<>>}, self(), conn)
   end

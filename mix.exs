@@ -1,7 +1,7 @@
 defmodule Riemannx.Mixfile do
   use Mix.Project
 
-  @version "1.0.1"
+  @version "2.0.0"
 
   def project do
     [
@@ -28,7 +28,7 @@ defmodule Riemannx.Mixfile do
     ]
   end
 
-  defp elixirc_paths(:test), do: ["lib", "test/servers"]
+  defp elixirc_paths(:test), do: ["lib", "test/servers", "test/"]
   defp elixirc_paths(_),     do: ["lib"]
 
   defp applications(:test) do
