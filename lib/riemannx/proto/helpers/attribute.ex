@@ -1,4 +1,6 @@
 defmodule Riemannx.Proto.Helpers.Attribute do
+    @moduledoc false
+
     defmacro __using__(_opts) do
         quote do
             def build(attributes) do
