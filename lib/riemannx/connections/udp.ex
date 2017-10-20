@@ -12,94 +12,82 @@ defmodule Riemannx.Connections.UDP do
   set on the server.
 
   As the UDP only connection is not default you should also specify this as the
-  worker module:
+  type:
 
   ```
   config :riemannx, [
     host: "localhost",
     udp_port: 5555,
     max_udp_size: 197163,
-    worker_module: Riemannx.Connections.UDP
+    type: :udp
   ]
   ```
   """
-  alias Riemannx.Proto.Msg
+  alias Riemannx.Connection
+  import Riemannx.Settings
   require Logger
   use GenServer
 
   # ===========================================================================
-  # Struct
+  # API
   # ===========================================================================
-  defstruct [
-    host: "localhost",
-    udp_port: 5555,
-    max_udp_size: 16384,
-    udp_socket: nil
-  ]
-
-  # ===========================================================================
-  # Types
-  # ===========================================================================
-  @type t :: %Riemannx.Connections.UDP{
-    host: binary(),
-    udp_port: integer(),
-    max_udp_size: integer(),
-    udp_socket: :gen_udp.socket() | nil
-  }
+  def get_worker(e, p) do
+    if byte_size(e) > max_udp_size() do
+      [error: "Transmission too large!", message: e]
+    else
+      :poolboy.checkout(p, false, :infinity)
+    end
+  end
+  def send(w, e), do: GenServer.call(w, {:send_msg, e})
+  def send_async(w, e), do: GenServer.cast(w, {:send_msg, e})
+  def release(w, _e, p), do: :poolboy.checkin(p, w)
 
   # ===========================================================================
   # Private
   # ===========================================================================
-  defp try_udp_connect(state) do
+  defp udp_connect(state) do
     {:ok, udp_socket} = :gen_udp.open(0, [:binary, {:sndbuf, state.max_udp_size}])
     udp_socket
-  rescue
-    e in MatchError ->
-      Logger.error("[#{__MODULE__}] Unable to connect: #{inspect e}")
-      try_udp_connect(state)
   end
 
   # ===========================================================================
   # GenServer Callbacks
   # ===========================================================================
-  @spec start_link(Keyword.t()) :: {:ok, pid()}
-  def start_link(args) do
-    GenServer.start_link(__MODULE__, args)
-  end
+  @spec start_link(Connection.t()) :: {:ok, pid()}
+  def start_link(conn), do: GenServer.start_link(__MODULE__, conn)
 
-  @spec init(Keyword.t()) :: {:ok, t()}
-  def init(args) do
+  @spec init(Connection.t()) :: {:ok, Connection.t()}
+  def init(conn) do
     Process.flag(:trap_exit, true)
-    GenServer.cast(self(), {:init, args})
-    {:ok, %Riemannx.Connections.UDP{}}
+    GenServer.cast(self(), :init)
+    {:ok, conn}
   end
 
-  def handle_call({:max_udp_size, value}, _from, state) when is_integer(value) do
-    {:reply, value, %{state | max_udp_size: value}}
-  end
-
-  def handle_cast({:init, args}, _state) do
-    state = %Riemannx.Connections.UDP{
-      host: args[:host] |> to_charlist,
-      udp_port: args[:udp_port],
-      max_udp_size: args[:max_udp_size]
-    }
-
-    udp_socket = try_udp_connect(state)
-
-    {:noreply, %{state | udp_socket: udp_socket}}
+  def handle_cast(:init, state) do
+    host        = state.host |> to_charlist()
+    state       = %{state | host: host}
+    udp_socket  = udp_connect(state)
+    {:noreply, %{state | socket: udp_socket}}
   end
   def handle_cast({:send_msg, msg}, state) do
-    encoded = Msg.encode(msg)
-    unless byte_size(encoded) > state.max_udp_size do
-      :ok = :gen_udp.send(state.udp_socket, state.host, state.udp_port, encoded)
-    end
-    :poolboy.checkin(:riemannx_pool, self())
+    :gen_udp.send(state.socket, state.host, state.udp_port, msg)
+    Connection.release(self(), msg)
     {:noreply, state}
   end
 
+  def handle_call({:send_msg, msg}, _from, state) do
+    reply = case :gen_udp.send(state.socket, state.host, state.udp_port, msg) do
+      :ok ->
+        :ok
+      {:error, code} ->
+        [error: "#{__MODULE__} | Unable to send event: #{code}", message: msg]
+    end
+    Connection.release(self(), msg)
+    {:reply, reply, state}
+  end
+
   def terminate(_reason, state) do
-    if state.udp_socket, do: :gen_udp.close(state.udp_socket)
+    if state.socket, do: :gen_udp.close(state.socket)
     :ok
   end
 end

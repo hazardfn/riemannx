@@ -2,20 +2,24 @@ defmodule RiemannxTest.TCP do
   use ExUnit.Case, async: false
   use PropCheck
   alias Riemannx.Proto.Msg
+  alias Riemannx.Connections.TCP, as: Client
+  alias RiemannxTest.Servers.TCP, as: Server
   alias RiemannxTest.Property.RiemannXPropTest, as: Prop
 
   setup_all do
     Application.load(:riemannx)
-    Application.put_env(:riemannx, :worker_module, Riemannx.Connections.TCP)
+    Application.put_env(:riemannx, :type, :tcp)
+    Application.put_env(:riemannx, :max_udp_size, 16384)
     :ok
   end
 
   setup do
-    {:ok, server} = RiemannxTest.Servers.TCP.start(self())
+    {:ok, server} = Server.start(self())
     Application.ensure_all_started(:riemannx)
+    Application.put_env(:riemannx, :max_udp_size, 16384)
 
     on_exit(fn() ->
-      RiemannxTest.Servers.TCP.stop(server)
+      Server.stop(server)
       Application.stop(:riemannx)
     end)
 
@@ -61,16 +65,47 @@ defmodule RiemannxTest.TCP do
     assert assert_events_received(events)
   end
 
+  test "Test connection retry raises eventually" do
+    Application.put_env(:riemannx, :retry_count, 1)
+    Application.put_env(:riemannx, :retry_interval, 1)
+    conn = %Riemannx.Connection{
+      host: "localhost",
+      tcp_port: 5554
+    }
+    assert_raise RuntimeError, fn() ->
+      Client.handle_cast(:init, conn)
+    end
+  end
+
+  @tag :error
+  test "Send failure is captured and returned on sync send" do
+    conn = %Riemannx.Connection{
+      host: "localhost" |> to_charlist,
+      tcp_port: 5554,
+      #:erlang.list_to_port is better but only in 20.
+      socket: RiemannxTest.Utils.term_to_port("#Port<0.9999>")
+    }
+    refute :ok == Client.handle_call({:send_msg, <<>>}, self(), conn)
+  end
+
   property "All reasonable metrics", [:verbose] do
-    numtests(500, forall events in Prop.encoded_events() do
+    numtests(250, forall events in Prop.encoded_events() do
         events = Prop.deconstruct_events(events)
         Riemannx.send_async(events)
         (__MODULE__.assert_events_received(events) == true)
     end)
   end
 
+  property "All reasonable metrics sync", [:verbose] do
+    numtests(250, forall events in Prop.encoded_events() do
+        events = Prop.deconstruct_events(events)
+        :ok = Riemannx.send(events)
+        (__MODULE__.assert_events_received(events) == true)
+    end)
+  end
+
   def assert_events_received(events) do
-    msg     = Riemannx.create_events_msg(events)
+    msg     = Riemannx.create_events_msg(events) |> Msg.decode()
     events  = msg.events |> Enum.map(fn(e) -> %{e | time: 0} end)
     msg     = %{msg | events: events}
     encoded = Msg.encode(msg)

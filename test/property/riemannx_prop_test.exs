@@ -11,15 +11,12 @@ defmodule RiemannxTest.Property.RiemannXPropTest do
   end
   def encoded_events() do
     let events <- events() do
-      events |> Riemannx.create_events_msg |> Msg.encode
+      events |> Riemannx.create_events_msg
     end
   end
 
   def udp_events(max_size) do
     such_that events <- encoded_events(), when: byte_size(events) <= max_size
-  end
-  def big_events(max_size) do
-    such_that events <- encoded_events(), when: byte_size(events) > max_size
   end
 
   def realistic_text do

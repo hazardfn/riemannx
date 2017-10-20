@@ -11,42 +11,35 @@ defmodule Riemannx.Connections.TCP do
   the server is listening on and the :host name of the server.
 
   As the TCP only connection is not default you should also specify this as the
-  worker module:
+  type:
 
   ```
   config :riemannx, [
     host: "localhost",
     tcp_port: 5552,
-    worker_module: Riemannx.Connections.TCP
+    type: :tcp
   ]
   ```
   """
-  alias Riemannx.Proto.Msg
+  @behaviour Riemannx.Connection
+  alias Riemannx.Connection
+  import Riemannx.Settings
   require Logger
   use GenServer
 
   # ===========================================================================
-  # Struct
+  # API
   # ===========================================================================
-  defstruct [
-    host: "localhost",
-    tcp_port: 5555,
-    tcp_socket: nil,
-  ]
-
-  # ===========================================================================
-  # Types
-  # ===========================================================================
-  @type t :: %Riemannx.Connections.TCP{
-    host: binary(),
-    tcp_port: integer(),
-    tcp_socket: :gen_tcp.socket() | nil
-  }
+  def get_worker(_e, p), do: :poolboy.checkout(p, false, :infinity)
+  def send(w, e), do: GenServer.call(w, {:send_msg, e})
+  def send_async(w, e), do: GenServer.cast(w, {:send_msg, e})
+  def release(w, _e, p), do: :poolboy.checkin(p, w)
 
   # ===========================================================================
   # Private
   # ===========================================================================
-  defp try_tcp_connect(state) do
+  defp try_tcp_connect(_state, 0), do: raise "Unable to connect!"
+  defp try_tcp_connect(state, n) do
     {:ok, tcp_socket} =
       :gen_tcp.connect(state.host,
                        state.tcp_port,
@@ -55,49 +48,54 @@ defmodule Riemannx.Connections.TCP do
   rescue
     e in MatchError ->
       Logger.error("[#{__MODULE__}] Unable to connect: #{inspect e}")
-      try_tcp_connect(state)
+      :timer.sleep(retry_interval())
+      try_tcp_connect(state, n-1)
   end
 
   # ===========================================================================
   # GenServer Callbacks
   # ===========================================================================
-  @spec start_link(Keyword.t()) :: {:ok, pid()}
-  def start_link(args) do
-    GenServer.start_link(__MODULE__, args)
-  end
+  @spec start_link(Connection.t()) :: {:ok, pid()}
+  def start_link(conn), do: GenServer.start_link(__MODULE__, conn)
 
-  @spec init(Keyword.t()) :: {:ok, t()}
-  def init(args) do
+  @spec init(Connection.t()) :: {:ok, Connection.t()}
+  def init(conn) do
     Process.flag(:trap_exit, true)
-    GenServer.cast(self(), {:init, args})
-    {:ok, %Riemannx.Connections.TCP{}}
+    GenServer.cast(self(), :init)
+    {:ok, conn}
   end
 
-  def handle_cast({:init, args}, _state) do
-    state = %Riemannx.Connections.TCP{
-      host: args[:host] |> to_charlist,
-      tcp_port: args[:tcp_port]
-    }
-
-    tcp_socket = try_tcp_connect(state)
-
-    {:noreply, %{state | tcp_socket: tcp_socket}}
+  def handle_cast(:init, state) do
+    host        = state.host |> to_charlist()
+    retry_count = retry_count()
+    state       = %{state | host: host}
+    tcp_socket  = try_tcp_connect(state, retry_count)
+    {:noreply, %{state | socket: tcp_socket}}
   end
   def handle_cast({:send_msg, msg}, state) do
-    encoded = Msg.encode(msg)
-    :ok = :gen_tcp.send(state.tcp_socket, encoded)
-    :poolboy.checkin(:riemannx_pool, self())
+    :gen_tcp.send(state.socket, msg)
+    Connection.release(self(), msg)
     {:noreply, state}
   end
 
+  def handle_call({:send_msg, msg}, _from, state) do
+    reply = case :gen_tcp.send(state.socket, msg) do
+      :ok ->
+        :ok
+      {:error, code} ->
+        [error: "#{__MODULE__} | Unable to send event: #{code}", message: msg]
+    end
+    Connection.release(self(), msg)
+    {:reply, reply, state}
+  end
 
   def handle_info({:tcp_closed, _socket}, state) do
-    {:stop, :tcp_closed, %{state | tcp_socket: nil}}
+    {:stop, :tcp_closed, %{state | socket: nil}}
   end
   def handle_info({:tcp, _socket, _msg}, state), do: {:noreply, state}
 
   def terminate(_reason, state) do
-    if state.tcp_socket, do: :gen_tcp.close(state.tcp_socket)
+    if state.socket, do: :gen_tcp.close(state.socket)
     :ok
   end
 end

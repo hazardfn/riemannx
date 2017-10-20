@@ -1,23 +1,11 @@
 defmodule Riemannx.Application do
   @moduledoc false
-
+  import Riemannx.Settings
   use Application
 
   def start(_type, _args) do
-    poolboy_config = [
-      name: {:local, pool_name()},
-      worker_module: worker_module(),
-      size: pool_size(),
-      max_overflow: max_overflow(),
-      strategy: strategy()
-    ]
-
-    children = [
-      :poolboy.child_spec(pool_name(), poolboy_config, [host: host(),
-                                                        tcp_port: tcp_port(),
-                                                        udp_port: udp_port(),
-                                                        max_udp_size: max_udp_size()])
-    ]
+    children =
+      if type() == :combined, do: combined_pool(), else: single_pool()
 
     opts = [
       strategy: :one_for_one,
@@ -28,13 +16,45 @@ defmodule Riemannx.Application do
     Supervisor.start_link(children, opts)
   end
 
-  defp pool_name, do: :riemannx_pool
-  defp pool_size, do: Application.get_env(:riemannx, :pool_size, 10)
-  defp strategy, do: Application.get_env(:riemannx, :strategy, :fifo)
-  defp max_overflow, do: Application.get_env(:riemannx, :max_overflow, 20)
-  defp worker_module, do: Application.get_env(:riemannx, :worker_module, Riemannx.Connections.Combined)
-  defp host, do: Application.get_env(:riemannx, :host, "localhost")
-  defp tcp_port, do: Application.get_env(:riemannx, :tcp_port, 5555)
-  defp udp_port, do: Application.get_env(:riemannx, :udp_port, 5555)
-  defp max_udp_size, do: Application.get_env(:riemannx, :max_udp_size, 16384)
+  defp single_pool do
+    conn = %Riemannx.Connection{
+      host: host(),
+      tcp_port: tcp_port(),
+      udp_port: udp_port(),
+      max_udp_size: max_udp_size()
+    }
+    poolboy_config = [
+      name: {:local, pool_name()},
+      worker_module: module(),
+      size: pool_size(),
+      max_overflow: max_overflow(),
+      strategy: strategy()
+    ]
+    [:poolboy.child_spec(pool_name(), poolboy_config, conn)]
+  end
+
+  defp combined_pool do
+    conn = %Riemannx.Connection{
+      host: host(),
+      tcp_port: tcp_port(),
+      udp_port: udp_port(),
+      max_udp_size: max_udp_size()
+    }
+    tcp_config = [
+      name: {:local, :riemannx_tcp},
+      worker_module: Riemannx.Connections.TCP,
+      size: pool_size(),
+      max_overflow: max_overflow(),
+      strategy: strategy()
+    ]
+    udp_config = [
+      name: {:local, :riemannx_udp},
+      worker_module: Riemannx.Connections.UDP,
+      size: pool_size(),
+      max_overflow: max_overflow(),
+      strategy: strategy()
+    ]
+    [:poolboy.child_spec(:riemannx_tcp, tcp_config, conn),
+     :poolboy.child_spec(:riemannx_udp, udp_config, conn)]
+  end
 end
