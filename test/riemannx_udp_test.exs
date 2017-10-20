@@ -111,7 +111,8 @@ defmodule RiemannxTest.UDP do
       host: "localhost" |> to_charlist,
       udp_port: 5554,
       max_udp_size: 100,
-      socket: :erlang.list_to_port('#Port<0.9999>')
+      #:erlang.list_to_port is better but only in 20.
+      socket: :erlang.ports |> Enum.max
     }
     refute :ok == Client.handle_call({:send_msg, <<>>}, self(), conn)
   end
