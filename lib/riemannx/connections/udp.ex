@@ -3,26 +3,8 @@ defmodule Riemannx.Connections.UDP do
   Using the UDP connection is not recommended at all, events will be dropped if
   they exceed the max_udp_size set. You can increase this server side and set
   the desired value in this client.
-
-  ## Configuration
-
-  In order to use the UDP connection all you need to set is the :udp_port
-  the server is listening on and the :host name of the server. You will
-  also need to set the :max_udp_size setting and it should match the value
-  set on the server.
-
-  As the UDP only connection is not default you should also specify this as the
-  type:
-
-  ```
-  config :riemannx, [
-    host: "localhost",
-    udp_port: 5555,
-    max_udp_size: 197163,
-    type: :udp
-  ]
-  ```
   """
+  @behaviour Riemannx.Connection
   alias Riemannx.Connection
   import Riemannx.Settings
   require Logger
@@ -70,7 +52,7 @@ defmodule Riemannx.Connections.UDP do
     {:noreply, %{state | socket: udp_socket}}
   end
   def handle_cast({:send_msg, msg}, state) do
-    :gen_udp.send(state.socket, state.host, state.udp_port, msg)
+    :ok = :gen_udp.send(state.socket, state.host, state.udp_port, msg)
     Connection.release(self(), msg)
     {:noreply, state}
   end
