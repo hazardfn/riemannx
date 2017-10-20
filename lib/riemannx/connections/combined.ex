@@ -24,108 +24,34 @@ defmodule Riemannx.Connections.Combined do
     max_udp_size: 167353
   ]
   ```
+
+  ## Special Note
+
+  Your pool size and overflow configuration is doubled when using a combined
+  connection - for example if you set a pool size of 10 the actual pool size
+  will be 20 to accomodate both UDP (10 workers) and TCP (10 workers).
   """
-  alias Riemannx.Proto.Msg
-  require Logger
-  use GenServer
+  @behaviour Riemannx.Connection
+
+  import Riemannx.Settings
+  alias Riemannx.Connections.TCP
+  alias Riemannx.Connections.UDP
 
   # ===========================================================================
-  # Struct
+  # API
   # ===========================================================================
-  defstruct [
-    host: "localhost",
-    tcp_port: 5555,
-    udp_port: 5555,
-    max_udp_size: 16384,
-    tcp_socket: nil,
-    udp_socket: nil
-  ]
-
-  # ===========================================================================
-  # Types
-  # ===========================================================================
-  @type t :: %Riemannx.Connections.Combined{
-    host: binary(),
-    tcp_port: integer(),
-    udp_port: integer(),
-    max_udp_size: integer(),
-    tcp_socket: :gen_tcp.socket() | nil,
-    udp_socket: :gen_udp.socket() | nil
-  }
+  def get_worker(e, _p), do: conn_module(e).get_worker(e, pool(e))
+  def send(w, e), do: conn_module(e).send(w, e)
+  def send_async(w, e), do: conn_module(e).send_async(w, e)
+  def release(w, e, _p), do: conn_module(e).release(w, e, pool(e))
 
   # ===========================================================================
   # Private
   # ===========================================================================
-  defp try_tcp_connect(state) do
-    {:ok, tcp_socket} =
-      :gen_tcp.connect(state.host,
-                       state.tcp_port,
-                       [:binary, nodelay: true, packet: 4, active: true, reuseaddr: true])
-    tcp_socket
-  rescue
-    e in MatchError ->
-      Logger.error("[#{__MODULE__}] Unable to connect: #{inspect e}")
-      try_tcp_connect(state)
+  defp conn_module(event) do
+    if byte_size(event) > max_udp_size(), do: TCP, else: UDP
   end
-
-  defp try_udp_connect(state) do
-    {:ok, udp_socket} = :gen_udp.open(0, [:binary, {:sndbuf, state.max_udp_size}])
-    udp_socket
-  rescue
-    MatchError -> try_udp_connect(state)
-  end
-
-  # ===========================================================================
-  # GenServer Callbacks
-  # ===========================================================================
-  @spec start_link(Keyword.t()) :: {:ok, pid()}
-  def start_link(args) do
-    GenServer.start_link(__MODULE__, args)
-  end
-
-  @spec init(Keyword.t()) :: {:ok, t()}
-  def init(args) do
-    Process.flag(:trap_exit, true)
-    GenServer.cast(self(), {:init, args})
-    {:ok, %Riemannx.Connections.Combined{}}
-  end
-
-  def handle_call({:max_udp_size, value}, _from, state) when is_integer(value) do
-    {:reply, value, %{state | max_udp_size: value}}
-  end
-
-  def handle_cast({:init, args}, _state) do
-    state = %Riemannx.Connections.Combined{
-      host: args[:host] |> to_charlist,
-      tcp_port: args[:tcp_port],
-      udp_port: args[:udp_port],
-      max_udp_size: args[:max_udp_size]
-    }
-
-    tcp_socket = try_tcp_connect(state)
-    udp_socket = try_udp_connect(state)
-
-    {:noreply, %{state | tcp_socket: tcp_socket, udp_socket: udp_socket}}
-  end
-  def handle_cast({:send_msg, msg}, state) do
-    encoded = Msg.encode(msg)
-    if byte_size(encoded) > state.max_udp_size do
-      :gen_tcp.send(state.tcp_socket, encoded)
-    else
-      :gen_udp.send(state.udp_socket, state.host, state.udp_port, encoded)
-    end
-    :poolboy.checkin(:riemannx_pool, self())
-    {:noreply, state}
-  end
-
-  def handle_info({:tcp_closed, _socket}, state) do
-    {:stop, :tcp_closed, %{state | tcp_socket: nil, udp_socket: nil}}
-  end
-  def handle_info({:tcp, _socket, _msg}, state), do: {:noreply, state}
-
-  def terminate(_reason, state) do
-    if state.udp_socket, do: :gen_udp.close(state.udp_socket)
-    if state.tcp_socket, do: :gen_tcp.close(state.tcp_socket)
-    :ok
+  defp pool(event) do
+    if conn_module(event) == TCP, do: :riemannx_tcp, else: :riemannx_udp
   end
 end

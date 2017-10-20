@@ -1,12 +1,14 @@
 defmodule RiemannxTest.Combined do
   use ExUnit.Case, async: false
   use PropCheck
+  import Riemannx.Settings
   alias Riemannx.Proto.Msg
   alias RiemannxTest.Property.RiemannXPropTest, as: Prop
 
   setup_all do
     Application.load(:riemannx)
-    Application.put_env(:riemannx, :worker_module, Riemannx.Connections.Combined)
+    Application.put_env(:riemannx, :type, :combined)
+    Application.put_env(:riemannx, :max_udp_size, 16384)
     :ok
   end
 
@@ -14,6 +16,7 @@ defmodule RiemannxTest.Combined do
     {:ok, tcp_server} = RiemannxTest.Servers.TCP.start(self())
     {:ok, udp_server} = RiemannxTest.Servers.UDP.start(self())
     Application.ensure_all_started(:riemannx)
+    Application.put_env(:riemannx, :max_udp_size, 16384)
 
     on_exit(fn() ->
       RiemannxTest.Servers.TCP.stop(tcp_server)
@@ -87,32 +90,38 @@ defmodule RiemannxTest.Combined do
         state: "ok"
       ]
     ]
-    :poolboy.transaction(
-      :riemannx_pool,
-      fn(pid) -> GenServer.call(pid, {:max_udp_size, 1}) end,
-      :infinity
-    )
+    Application.put_env(:riemannx, :max_udp_size, 1)
     Riemannx.send_async(events)
     assert_events_received(events, :tcp)
+    Application.put_env(:riemannx, :max_udp_size, 16384)
   end
 
 
-  property "All reasonable metrics", [:verbose] do
-    numtests(500, forall events in Prop.encoded_events() do
+  property "All reasonable metrics async", [:verbose] do
+    numtests(250, forall events in Prop.encoded_events() do
         events = Prop.deconstruct_events(events)
         Riemannx.send_async(events)
         (__MODULE__.assert_events_received(events) == true)
     end)
   end
 
+  property "All reasonable metrics sync", [:verbose] do
+    numtests(250, forall events in Prop.encoded_events() do
+        events = Prop.deconstruct_events(events)
+        :ok = Riemannx.send(events)
+        (__MODULE__.assert_events_received(events) == true)
+    end)
+  end
+
   def assert_events_received(events) do
-    msg     = Riemannx.create_events_msg(events)
+    orig    = Riemannx.create_events_msg(events)
+    msg     = orig |> Msg.decode()
     events  = msg.events |> Enum.map(fn(e) -> %{e | time: 0} end)
     msg     = %{msg | events: events}
     encoded = Msg.encode(msg)
     receive do
       {^encoded, x} ->
-        if byte_size(encoded) > Application.get_env(:riemannx, :max_udp_size, 16384) do
+        if byte_size(orig) > max_udp_size() do
           assert x == :tcp
           true
         else
@@ -123,7 +132,7 @@ defmodule RiemannxTest.Combined do
     end
   end
   def assert_events_received(events, x) do
-    msg     = Riemannx.create_events_msg(events)
+    msg     = Riemannx.create_events_msg(events) |> Msg.decode()
     events  = msg.events |> Enum.map(fn(e) -> %{e | time: 0} end)
     msg     = %{msg | events: events}
     encoded = Msg.encode(msg)
