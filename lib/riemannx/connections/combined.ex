@@ -7,25 +7,11 @@ defmodule Riemannx.Connections.Combined do
   events if they exceed the byte size configured on the Riemann server. This
   connection is the recommended default.
 
-  ## Configuration
+  ## Special Notes
 
-  In order to use the combined connection module effectively the most important
-  setting is the :max_udp_size. You can check your Riemann server for the
-  correct value but the default is 16384.
-
-  You must also ensure you have a :tcp_port and :udp_port configured. In most
-  cases these are the same value but not in all. An example config is below:
-
-  ```
-  config :riemannx, [
-    host: "localhost",
-    tcp_port: 5552,
-    udp_port: 8792,
-    max_udp_size: 167353
-  ]
-  ```
-
-  ## Special Note
+  The callback functions in this module simply route to the callback functions
+  in either the TCP or UDP modules based on a simple byte_size check of the
+  given event.
 
   Your pool size and overflow configuration is doubled when using a combined
   connection - for example if you set a pool size of 10 the actual pool size

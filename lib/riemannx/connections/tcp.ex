@@ -1,25 +1,9 @@
 defmodule Riemannx.Connections.TCP do
   @moduledoc """
   Using the TCP connection will only send traffic via TCP, all traffic can be
-  sent via TCP as opposed to UDP where you are limit by packet size, there is
+  sent via TCP as opposed to UDP where you are limited by packet size, there is
   however an overhead penalty using purely TCP which is why the combined
   connection is the recommended default.
-
-  ## Configuration
-
-  In order to use the TCP connection all you need to set is the :tcp_port
-  the server is listening on and the :host name of the server.
-
-  As the TCP only connection is not default you should also specify this as the
-  type:
-
-  ```
-  config :riemannx, [
-    host: "localhost",
-    tcp_port: 5552,
-    type: :tcp
-  ]
-  ```
   """
   @behaviour Riemannx.Connection
   alias Riemannx.Connection
@@ -73,7 +57,7 @@ defmodule Riemannx.Connections.TCP do
     {:noreply, %{state | socket: tcp_socket}}
   end
   def handle_cast({:send_msg, msg}, state) do
-    :gen_tcp.send(state.socket, msg)
+    :ok = :gen_tcp.send(state.socket, msg)
     Connection.release(self(), msg)
     {:noreply, state}
   end

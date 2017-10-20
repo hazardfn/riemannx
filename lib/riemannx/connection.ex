@@ -2,6 +2,9 @@ defmodule Riemannx.Connection do
   @moduledoc """
   This is the behaviour specification for all connections as well as a generic
   API for communication with them based on the settings given in your config.
+
+  The struct in this module is used across all connection types as much of the
+  data is common to all types.
   """
   import Riemannx.Settings
 
@@ -43,7 +46,7 @@ defmodule Riemannx.Connection do
   # API
   # ===========================================================================
   @doc """
-  Fetches a relevant worker based on your connection type
+  Fetches a relevant worker based on your connection type.
   """
   @spec get_worker(encoded_event(), atom()) :: pid() | error()
   def get_worker(e, p \\ :riemannx_pool), do: module().get_worker(e, p)
