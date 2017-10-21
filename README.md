@@ -11,6 +11,8 @@
 
 Riemannx is a riemann client built in elixir, currently it's the only client in elixir that supports UDP. It has an experimental combined option that makes the best of both TCP and UDP - in the combined mode UDP is the favoured approach but if the message size exceeds the max udp size set TCP will be used.
 
+It also (as of 2.1.0) supports TLS connections.
+
 ## Contents
 
 1. [Prerequisites](#prerequisites)
@@ -149,7 +151,8 @@ If you choose to use TLS you will be using a purely TCP setup, combined is not s
     # See available options here: http://erlang.org/doc/man/ssl.html
     ssl_opts: [
       keyfile: "path/to/key",
-      certfile: "path/to/cert"
+      certfile: "path/to/cert",
+      verify_peer: true
     ]
   ]
 ```
