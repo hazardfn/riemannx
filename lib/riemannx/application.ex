@@ -9,9 +9,7 @@ defmodule Riemannx.Application do
       tcp_port: tcp_port(),
       udp_port: udp_port(),
       max_udp_size: max_udp_size(),
-      key: key(),
-      cert: cert(),
-      verify_peer: verify_peer()
+      ssl_opts: ssl_options()
     }
     children =
       if type() == :combined, do: combined_pool(conn), else: single_pool(conn)

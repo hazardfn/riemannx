@@ -145,9 +145,12 @@ If you choose to use TLS you will be using a purely TCP setup, combined is not s
     host: "127.0.0.1",
     tcp_port: 5555,
     type: :tls,
-    key: "path/to/key",
-    cert: "path/to/cert",
-    verify_peer: true
+    # SSL Opts are passed to the underlying ssl erlang interface
+    # See available options here: http://erlang.org/doc/man/ssl.html
+    ssl_opts: [
+      keyfile: "path/to/key",
+      certfile: "path/to/cert"
+    ]
   ]
 ```
 Assuming you have set up the server-side correctly this should be all you need to get started.

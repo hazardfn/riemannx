@@ -98,7 +98,7 @@ defmodule RiemannxTest.Combined do
 
 
   property "All reasonable metrics async", [:verbose] do
-    numtests(250, forall events in Prop.encoded_events() do
+    numtests(100, forall events in Prop.encoded_events() do
         events = Prop.deconstruct_events(events)
         Riemannx.send_async(events)
         (__MODULE__.assert_events_received(events) == true)
@@ -106,7 +106,7 @@ defmodule RiemannxTest.Combined do
   end
 
   property "All reasonable metrics sync", [:verbose] do
-    numtests(250, forall events in Prop.encoded_events() do
+    numtests(100, forall events in Prop.encoded_events() do
         events = Prop.deconstruct_events(events)
         :ok = Riemannx.send(events)
         (__MODULE__.assert_events_received(events) == true)

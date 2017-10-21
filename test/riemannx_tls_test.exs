@@ -7,13 +7,13 @@ defmodule RiemannxTest.TLS do
   alias RiemannxTest.Property.RiemannXPropTest, as: Prop
 
   setup_all do
-    {:ok, hostname} = :inet.gethostname
-    hostname = hostname |> to_string()
     Application.load(:riemannx)
     Application.put_env(:riemannx, :type, :tls)
-    Application.put_env(:riemannx, :key, "test/certs/client/key.pem")
-    Application.put_env(:riemannx, :cert, "test/certs/client/cert.pem")
-    Application.put_env(:riemannx, :host, hostname)
+    Application.put_env(:riemannx, :ssl_opts, [
+      keyfile: "test/certs/client/key.pem",
+      certfile: "test/certs/client/cert.pem",
+      server_name_indication: :disable
+    ])
     Application.put_env(:riemannx, :tcp_port, 5554)
     Application.put_env(:riemannx, :max_udp_size, 16384)
     on_exit(fn() ->
@@ -97,25 +97,8 @@ defmodule RiemannxTest.TLS do
     refute :ok == Client.handle_call({:send_msg, <<>>}, self(), conn)
   end
 
-  test "Turning off verify doesn't break anything" do
-    Application.stop(:riemannx)
-    Application.put_env(:riemannx, :verify_peer, false)
-    Application.start(:riemannx)
-
-    event = [
-      service: "riemannx-elixir",
-      metric: 1,
-      attributes: [a: 1],
-      description: "test"
-    ]
-    Riemannx.send_async(event)
-    assert assert_events_received(event)
-
-    Application.put_env(:riemannx, :verify_peer, true)
-  end
-
   property "All reasonable metrics", [:verbose] do
-    numtests(250, forall events in Prop.encoded_events() do
+    numtests(100, forall events in Prop.encoded_events() do
         events = Prop.deconstruct_events(events)
         Riemannx.send_async(events)
         (__MODULE__.assert_events_received(events) == true)
@@ -123,7 +106,7 @@ defmodule RiemannxTest.TLS do
   end
 
   property "All reasonable metrics sync", [:verbose] do
-    numtests(250, forall events in Prop.encoded_events() do
+    numtests(100, forall events in Prop.encoded_events() do
         events = Prop.deconstruct_events(events)
         :ok = Riemannx.send(events)
         (__MODULE__.assert_events_received(events) == true)

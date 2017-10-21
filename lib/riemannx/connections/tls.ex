@@ -22,21 +22,11 @@ defmodule Riemannx.Connections.TLS do
   # ===========================================================================
   # Private
   # ===========================================================================
-  defp ssl_opts(state) do
-    opts = [keyfile: state.key, certfile: state.cert]
-    if !verify_peer() do
-      opts ++ [verify: :verify_none]
-    else
-      opts
-    end
-  end
-
   defp try_ssl_connect(_state, 0), do: raise "Unable to connect!"
   defp try_ssl_connect(state, n) do
     opts = [:binary, nodelay: true, packet: 4, active: true, reuseaddr: true]
-    ssl  = ssl_opts(state)
     {:ok, ssl_socket} =
-      :ssl.connect(state.host, state.tcp_port, ssl ++ opts)
+      :ssl.connect(state.host, state.tcp_port, state.ssl_opts ++ opts)
     ssl_socket
   rescue
     e in MatchError ->

@@ -121,7 +121,7 @@ defmodule RiemannxTest.UDP do
   end
 
   property "All reasonable metrics", [:verbose] do
-    numtests(250, forall events in Prop.udp_events(max_udp_size()) do
+    numtests(100, forall events in Prop.udp_events(max_udp_size()) do
         events = Prop.deconstruct_events(events)
         Riemannx.send_async(events)
         (__MODULE__.assert_events_received(events) == true)
@@ -129,7 +129,7 @@ defmodule RiemannxTest.UDP do
   end
 
   property "All reasonable metrics sync", [:verbose] do
-    numtests(250, forall events in Prop.udp_events(max_udp_size()) do
+    numtests(100, forall events in Prop.udp_events(max_udp_size()) do
         events = Prop.deconstruct_events(events)
         :ok = Riemannx.send(events)
         (__MODULE__.assert_events_received(events) == true)

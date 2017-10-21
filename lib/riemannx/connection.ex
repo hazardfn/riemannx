@@ -16,9 +16,7 @@ defmodule Riemannx.Connection do
     tcp_port: nil,
     udp_port: nil,
     max_udp_size: nil,
-    key: nil,
-    cert: nil,
-    verify_peer: true,
+    ssl_opts: [],
     socket: nil
   ]
 
@@ -34,9 +32,7 @@ defmodule Riemannx.Connection do
     tcp_port: :inet.port_number(),
     udp_port: :inet.port_number(),
     max_udp_size: non_neg_integer(),
-    key: String.t(),
-    cert: String.t(),
-    verify_peer: boolean(),
+    ssl_opts: [:ssl.ssl_option()],
     socket: socket()
   }
 

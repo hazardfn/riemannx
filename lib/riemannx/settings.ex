@@ -155,30 +155,12 @@ defmodule Riemannx.Settings do
   def retry_interval(), do: get_env(:riemannx, :retry_interval, 5) * 1000
 
   @doc """
-  When verify_peer is enabled, and the verification fails to prove that the
-  certificate is authentic, the connection fails.
+  Retrives SSL options set for a TLS connection. For more information
+  on the available options see here: http://erlang.org/doc/man/ssl.html
 
-  When the option is false, the peer certificate verification succeeds
-  regardless. It is therefore recommended to leave this enabled in most
-  circumstances.
-
-  (Wording copied from curl docs, they explained it best:
-  https://curl.haxx.se/libcurl/c/CURLOPT_SSL_VERIFYPEER.html)
-
-  Default: true
+  In order to use TLS correctly with riemann you need to specify both
+  a keyfile and a certfile.
   """
-  @spec verify_peer() :: boolean()
-  def verify_peer(), do: get_env(:riemannx, :verify_peer, true)
-
-  @doc """
-  The location to your key file if you are using TLS connections.
-  """
-  @spec key() :: String.t()
-  def key(), do: get_env(:riemannx, :key, "")
-
-  @doc """
-  The location of your cert file if you are using TLS connections.
-  """
-  @spec cert() :: String.t()
-  def cert(), do: get_env(:riemannx, :cert, "")
+  @spec ssl_options() :: [:ssl.ssl_option()]
+  def ssl_options(), do: get_env(:riemannx, :ssl_opts, [])
 end
