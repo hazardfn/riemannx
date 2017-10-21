@@ -1,4 +1,6 @@
 defmodule RiemannxTest.Servers.TCP do
+  @moduledoc false
+
   alias Riemannx.Proto.Msg
   use GenServer
 
@@ -39,10 +41,10 @@ defmodule RiemannxTest.Servers.TCP do
   end
 
   def handle_info({:tcp, _port, msg}, state) do
-    decoded = msg |> Msg.decode()
-    events  = decoded.events |> Enum.map(fn(e) -> %{e | time: 0} end)
+    decoded = Msg.decode(msg)
+    events  = Enum.map(decoded.events, fn(e) -> %{e | time: 0} end)
     decoded = %{decoded | events: events}
-    msg     = decoded |> Msg.encode
+    msg     = Msg.encode(decoded)
     send(state.test_pid, {msg, :tcp})
     {:noreply, state}
   end

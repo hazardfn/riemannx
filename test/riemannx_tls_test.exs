@@ -89,7 +89,7 @@ defmodule RiemannxTest.TLS do
 
   test "Send failure is captured and returned on sync send", context do
     conn = %Riemannx.Connection{
-      host: "localhost" |> to_charlist,
+      host: to_charlist("localhost"),
       tcp_port: 5553,
       socket: :sys.get_state(context[:server]).socket
     }
@@ -114,8 +114,8 @@ defmodule RiemannxTest.TLS do
   end
 
   def assert_events_received(events) do
-    msg     = Riemannx.create_events_msg(events) |> Msg.decode()
-    events  = msg.events |> Enum.map(fn(e) -> %{e | time: 0} end)
+    msg     = events |> Riemannx.create_events_msg() |> Msg.decode()
+    events  = Enum.map(msg.events, fn(e) -> %{e | time: 0} end)
     msg     = %{msg | events: events}
     encoded = Msg.encode(msg)
     receive do

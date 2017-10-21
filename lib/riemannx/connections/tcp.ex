@@ -33,7 +33,7 @@ defmodule Riemannx.Connections.TCP do
     e in MatchError ->
       Logger.error("[#{__MODULE__}] Unable to connect: #{inspect e}")
       :timer.sleep(retry_interval())
-      try_tcp_connect(state, n-1)
+      try_tcp_connect(state, n - 1)
   end
 
   # ===========================================================================
@@ -50,7 +50,7 @@ defmodule Riemannx.Connections.TCP do
   end
 
   def handle_cast(:init, state) do
-    host        = state.host |> to_charlist()
+    host        = to_charlist(state.host)
     retry_count = retry_count()
     state       = %{state | host: host}
     tcp_socket  = try_tcp_connect(state, retry_count)

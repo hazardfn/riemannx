@@ -131,7 +131,7 @@ defmodule Riemannx.Settings do
   Default: 16384
   """
   @spec max_udp_size() :: non_neg_integer()
-  def max_udp_size, do: get_env(:riemannx, :max_udp_size, 16384)
+  def max_udp_size, do: get_env(:riemannx, :max_udp_size, 16_384)
 
   @doc """
   The retry count is how many times riemann will attempt a connection before

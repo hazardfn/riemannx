@@ -16,7 +16,7 @@ defmodule Riemannx.Proto.Helpers.Event do
 
       # [service: "a", metric: 1]
       def list_to_events(keyword) do
-        [keyword] |> list_to_events
+        list_to_events([keyword])
       end
 
       def build(dict) do

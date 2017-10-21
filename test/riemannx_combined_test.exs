@@ -8,7 +8,7 @@ defmodule RiemannxTest.Combined do
   setup_all do
     Application.load(:riemannx)
     Application.put_env(:riemannx, :type, :combined)
-    Application.put_env(:riemannx, :max_udp_size, 16384)
+    Application.put_env(:riemannx, :max_udp_size, 16_384)
     :ok
   end
 
@@ -16,7 +16,7 @@ defmodule RiemannxTest.Combined do
     {:ok, tcp_server} = RiemannxTest.Servers.TCP.start(self())
     {:ok, udp_server} = RiemannxTest.Servers.UDP.start(self())
     Application.ensure_all_started(:riemannx)
-    Application.put_env(:riemannx, :max_udp_size, 16384)
+    Application.put_env(:riemannx, :max_udp_size, 16_384)
 
     on_exit(fn() ->
       RiemannxTest.Servers.TCP.stop(tcp_server)
@@ -93,9 +93,8 @@ defmodule RiemannxTest.Combined do
     Application.put_env(:riemannx, :max_udp_size, 1)
     Riemannx.send_async(events)
     assert_events_received(events, :tcp)
-    Application.put_env(:riemannx, :max_udp_size, 16384)
+    Application.put_env(:riemannx, :max_udp_size, 16_384)
   end
-
 
   property "All reasonable metrics async", [:verbose] do
     numtests(100, forall events in Prop.encoded_events() do
@@ -115,8 +114,8 @@ defmodule RiemannxTest.Combined do
 
   def assert_events_received(events) do
     orig    = Riemannx.create_events_msg(events)
-    msg     = orig |> Msg.decode()
-    events  = msg.events |> Enum.map(fn(e) -> %{e | time: 0} end)
+    msg     = Msg.decode(orig)
+    events  = Enum.map(msg.events, fn(e) -> %{e | time: 0} end)
     msg     = %{msg | events: events}
     encoded = Msg.encode(msg)
     receive do
@@ -132,8 +131,8 @@ defmodule RiemannxTest.Combined do
     end
   end
   def assert_events_received(events, x) do
-    msg     = Riemannx.create_events_msg(events) |> Msg.decode()
-    events  = msg.events |> Enum.map(fn(e) -> %{e | time: 0} end)
+    msg     = events |> Riemannx.create_events_msg() |> Msg.decode()
+    events  = Enum.map(msg.events, fn(e) -> %{e | time: 0} end)
     msg     = %{msg | events: events}
     encoded = Msg.encode(msg)
     receive do

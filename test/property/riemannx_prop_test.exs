@@ -11,7 +11,7 @@ defmodule RiemannxTest.Property.RiemannXPropTest do
   end
   def encoded_events() do
     let events <- events() do
-      events |> Riemannx.create_events_msg
+      Riemannx.create_events_msg(events)
     end
   end
 
@@ -37,10 +37,9 @@ defmodule RiemannxTest.Property.RiemannXPropTest do
     events = events
     |> Msg.decode()
     |> Map.fetch!(:events)
-    |> Enum.map(fn(e) -> Map.delete(e, :__struct__) |> Map.to_list() end)
+    |> Enum.map(fn(e) -> Map.to_list(Map.delete(e, :__struct__)) end)
 
-
-  attributes = events
+    attributes = events
     |> Enum.map(fn(event) ->
       event
       |> Keyword.get(:attributes, [])
@@ -51,7 +50,8 @@ defmodule RiemannxTest.Property.RiemannXPropTest do
     end)
     |> List.flatten()
 
-    events
-    |> Enum.flat_map(fn(kw) -> Keyword.put(kw, :attributes, attributes) end)
+    Enum.flat_map(events, fn(kw) ->
+      Keyword.put(kw, :attributes, attributes)
+    end)
   end
 end

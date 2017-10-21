@@ -32,7 +32,7 @@ defmodule Riemannx.Connections.TLS do
     e in MatchError ->
       Logger.error("[#{__MODULE__}] Unable to connect: #{inspect e}")
       :timer.sleep(retry_interval())
-      try_ssl_connect(state, n-1)
+      try_ssl_connect(state, n - 1)
   end
 
   # ===========================================================================
@@ -49,7 +49,7 @@ defmodule Riemannx.Connections.TLS do
   end
 
   def handle_cast(:init, state) do
-    host        = state.host |> to_charlist()
+    host        = to_charlist(state.host)
     retry_count = retry_count()
     state       = %{state | host: host}
     ssl_socket  = try_ssl_connect(state, retry_count)
