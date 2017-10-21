@@ -137,9 +137,11 @@ Riemannx.send_async(event)
 
 Contributions are warmly received, here are some ideas I have had of things I'd like to improve or do:
 
-    * Performance Tests / Benchmarks for each mode (:tcp, :udp, :combined).
-    * Cleanup Proto.Helpers.Event - it's a little messy in there some clean well documented code would be suuuuper.
-    * Some more property tests - I think some more negative testing is required here, throwing some things at it it shouldn't handle and seeing if it holds.
+  * Performance Tests / Benchmarks for each mode (:tcp, :udp, :combined).
+
+  * Cleanup Proto.Helpers.Event - it's a little messy in there some clean well documented code would be suuuuper.
+
+  * Some more property tests - I think some more negative testing is required here, throwing some things at it it shouldn't handle and seeing if it holds.
 
 ## 5. Acknowledgements<a name="ack"></a>
 
