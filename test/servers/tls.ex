@@ -22,7 +22,7 @@ defmodule RiemannxTest.Servers.TLS do
   end
 
   defp try_listen(port) do
-    {:ok, socket} = :ssl.listen(port,
+    {:ok, _} = :ssl.listen(port,
     [:binary,
      packet: 4,
      active: true,
