@@ -15,7 +15,7 @@ defmodule RiemannxTest.TLS do
       server_name_indication: :disable
     ])
     Application.put_env(:riemannx, :tcp_port, 5554)
-    Application.put_env(:riemannx, :max_udp_size, 16384)
+    Application.put_env(:riemannx, :max_udp_size, 16_384)
     on_exit(fn() ->
       Application.unload(:riemannx)
     end)
@@ -25,7 +25,7 @@ defmodule RiemannxTest.TLS do
   setup do
     {:ok, server} = Server.start(self())
     Application.ensure_all_started(:riemannx)
-    Application.put_env(:riemannx, :max_udp_size, 16384)
+    Application.put_env(:riemannx, :max_udp_size, 16_384)
 
     on_exit(fn() ->
       Server.stop(server)
