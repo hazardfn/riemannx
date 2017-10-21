@@ -4,8 +4,18 @@ defmodule Riemannx.Application do
   use Application
 
   def start(_type, _args) do
+    conn = %Riemannx.Connection{
+      host: host(),
+      tcp_port: tcp_port(),
+      udp_port: udp_port(),
+      max_udp_size: max_udp_size(),
+      key: key(),
+      cert: cert(),
+      verify_peer: verify_peer()
+    }
     children =
-      if type() == :combined, do: combined_pool(), else: single_pool()
+      if type() == :combined, do: combined_pool(conn), else: single_pool(conn)
+      if type() == :tls, do: :ssl.start()
 
     opts = [
       strategy: :one_for_one,
@@ -16,13 +26,7 @@ defmodule Riemannx.Application do
     Supervisor.start_link(children, opts)
   end
 
-  defp single_pool do
-    conn = %Riemannx.Connection{
-      host: host(),
-      tcp_port: tcp_port(),
-      udp_port: udp_port(),
-      max_udp_size: max_udp_size()
-    }
+  defp single_pool(conn) do
     poolboy_config = [
       name: {:local, pool_name()},
       worker_module: module(),
@@ -33,13 +37,7 @@ defmodule Riemannx.Application do
     [:poolboy.child_spec(pool_name(), poolboy_config, conn)]
   end
 
-  defp combined_pool do
-    conn = %Riemannx.Connection{
-      host: host(),
-      tcp_port: tcp_port(),
-      udp_port: udp_port(),
-      max_udp_size: max_udp_size()
-    }
+  defp combined_pool(conn) do
     tcp_config = [
       name: {:local, :riemannx_tcp},
       worker_module: Riemannx.Connections.TCP,

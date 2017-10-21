@@ -1,14 +1,20 @@
-defmodule RiemannxTest.TCP do
+defmodule RiemannxTest.TLS do
   use ExUnit.Case, async: false
   use PropCheck
   alias Riemannx.Proto.Msg
-  alias Riemannx.Connections.TCP, as: Client
-  alias RiemannxTest.Servers.TCP, as: Server
+  alias Riemannx.Connections.TLS, as: Client
+  alias RiemannxTest.Servers.TLS, as: Server
   alias RiemannxTest.Property.RiemannXPropTest, as: Prop
 
   setup_all do
+    {:ok, hostname} = :inet.gethostname
+    hostname = hostname |> to_string()
     Application.load(:riemannx)
-    Application.put_env(:riemannx, :type, :tcp)
+    Application.put_env(:riemannx, :type, :tls)
+    Application.put_env(:riemannx, :key, "test/certs/client/key.pem")
+    Application.put_env(:riemannx, :cert, "test/certs/client/cert.pem")
+    Application.put_env(:riemannx, :host, hostname)
+    Application.put_env(:riemannx, :tcp_port, 5554)
     Application.put_env(:riemannx, :max_udp_size, 16384)
     on_exit(fn() ->
       Application.unload(:riemannx)
@@ -40,6 +46,7 @@ defmodule RiemannxTest.TCP do
     assert assert_events_received(event)
   end
 
+  @tag :tls
   test "send_async/1 can send multiple events" do
     events = [
       [
@@ -73,22 +80,38 @@ defmodule RiemannxTest.TCP do
     Application.put_env(:riemannx, :retry_interval, 1)
     conn = %Riemannx.Connection{
       host: "localhost",
-      tcp_port: 5554
+      tcp_port: 5556
     }
     assert_raise RuntimeError, fn() ->
       Client.handle_cast(:init, conn)
     end
   end
 
-  @tag :error
-  test "Send failure is captured and returned on sync send" do
+  test "Send failure is captured and returned on sync send", context do
     conn = %Riemannx.Connection{
       host: "localhost" |> to_charlist,
-      tcp_port: 5554,
-      #:erlang.list_to_port is better but only in 20.
-      socket: RiemannxTest.Utils.term_to_port("#Port<0.9999>")
+      tcp_port: 5553,
+      socket: :sys.get_state(context[:server]).socket
     }
+    GenServer.call(context[:server], :cleanup)
     refute :ok == Client.handle_call({:send_msg, <<>>}, self(), conn)
+  end
+
+  test "Turning off verify doesn't break anything" do
+    Application.stop(:riemannx)
+    Application.put_env(:riemannx, :verify_peer, false)
+    Application.start(:riemannx)
+
+    event = [
+      service: "riemannx-elixir",
+      metric: 1,
+      attributes: [a: 1],
+      description: "test"
+    ]
+    Riemannx.send_async(event)
+    assert assert_events_received(event)
+
+    Application.put_env(:riemannx, :verify_peer, true)
   end
 
   property "All reasonable metrics", [:verbose] do
@@ -113,7 +136,7 @@ defmodule RiemannxTest.TCP do
     msg     = %{msg | events: events}
     encoded = Msg.encode(msg)
     receive do
-      {^encoded, :tcp} -> true
+      {^encoded, :ssl} -> true
     after
       10_000 -> false
     end

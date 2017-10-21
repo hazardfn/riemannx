@@ -67,16 +67,19 @@ defmodule Riemannx.Settings do
 
   * `:tcp`
   * `:udp`
+  * `:tls`
   * `:combined` (default)
 
   Combined is the recommended default giving you the best of both worlds, if
-  for any reason you can't use both the others are there to fall back on.
+  for any reason you can't use both the others are there to fall back on. If
+  secure communication is a concern TLS is an option which is a secure TCP-only
+  setup.
 
   REMEMBER: In combined connections your pool sizes/overflow are doubled!
 
   Default: `:combined`
   """
-  @spec type() :: :tcp | :udp | :combined
+  @spec type() :: :tcp | :udp | :tls | :combined
   def type, do: get_env(:riemannx, :type, :combined)
 
   @doc """
@@ -88,6 +91,7 @@ defmodule Riemannx.Settings do
     case type() do
       :tcp -> Riemannx.Connections.TCP
       :udp -> Riemannx.Connections.UDP
+      :tls -> Riemannx.Connections.TLS
       :combined -> Riemannx.Connections.Combined
     end
   end
@@ -149,4 +153,32 @@ defmodule Riemannx.Settings do
   """
   @spec retry_interval() :: non_neg_integer()
   def retry_interval(), do: get_env(:riemannx, :retry_interval, 5) * 1000
+
+  @doc """
+  When verify_peer is enabled, and the verification fails to prove that the
+  certificate is authentic, the connection fails.
+
+  When the option is false, the peer certificate verification succeeds
+  regardless. It is therefore recommended to leave this enabled in most
+  circumstances.
+
+  (Wording copied from curl docs, they explained it best:
+  https://curl.haxx.se/libcurl/c/CURLOPT_SSL_VERIFYPEER.html)
+
+  Default: true
+  """
+  @spec verify_peer() :: boolean()
+  def verify_peer(), do: get_env(:riemannx, :verify_peer, true)
+
+  @doc """
+  The location to your key file if you are using TLS connections.
+  """
+  @spec key() :: String.t()
+  def key(), do: get_env(:riemannx, :key, "")
+
+  @doc """
+  The location of your cert file if you are using TLS connections.
+  """
+  @spec cert() :: String.t()
+  def cert(), do: get_env(:riemannx, :cert, "")
 end

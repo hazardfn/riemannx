@@ -11,6 +11,9 @@ defmodule RiemannxTest.UDP do
     Application.load(:riemannx)
     Application.put_env(:riemannx, :type, :udp)
     Application.put_env(:riemannx, :max_udp_size, 16384)
+    on_exit(fn() ->
+      Application.unload(:riemannx)
+    end)
     :ok
   end
 

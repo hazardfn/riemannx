@@ -21,6 +21,7 @@ Riemannx is a riemann client built in elixir, currently it's the only client in 
 3. [Examples](#examples)
     * [Synchronous](#sync)
     * [Asynchronous](#async)
+    * [TLS](#tls)
 4. [Contributions](#contribute)
 5. [Acknowledgements](#ack)
 
@@ -79,7 +80,7 @@ config :riemannx, [
   tcp_port: 5555,
   udp_port: 5555,
   max_udp_size: 16384, # Must be the same as server side, the default is riemann's default.
-  type: :combined,
+  type: :combined, # A choice of :tcp, :udp, :combined or :tls
   retry_count: 5, # How many times to re-attempt a TCP connection before crashing.
   retry_interval: 1, # Interval to wait before the next TCP connection attempt.
 
@@ -132,6 +133,24 @@ Riemannx.send_async(event)
 ```
 
 > NOTE: If a worker is unable to send it will die and be restarted giving it a chance to return to a 'correct' state. On an asynchronous send this is done by pattern matching :ok with the send command, for synchronous sends if the return value is an error we kill the worker before returning the result.
+
+### TLS<a name="tls"></a>
+
+TLS support allows you to use a secure TCP connection with your riemann server, to learn more about how to set this up take a look here: [Secure Riemann Traffic Using TLS](http://riemann.io/howto.html#securing-traffic-using-tls)
+
+If you choose to use TLS you will be using a purely TCP setup, combined is not supported (and shouldn't be either) with TLS:
+
+```elixir
+  config :riemannx, [
+    host: "127.0.0.1",
+    tcp_port: 5555,
+    type: :tls,
+    key: "path/to/key",
+    cert: "path/to/cert",
+    verify_peer: true
+  ]
+```
+Assuming you have set up the server-side correctly this should be all you need to get started.
 
 ## 4. Contributions<a name="contribute"></a>
 
