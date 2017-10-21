@@ -16,6 +16,7 @@ defmodule Riemannx.Connection do
     tcp_port: nil,
     udp_port: nil,
     max_udp_size: nil,
+    ssl_opts: [],
     socket: nil
   ]
 
@@ -25,12 +26,13 @@ defmodule Riemannx.Connection do
   @type error :: [error: binary(), message: binary()]
   @type encoded_event :: binary()
   @type retry_count :: non_neg_integer() | :infinity
-  @type socket :: {:ok, :gen_udp.socket() | :gen_tcp.socket()}
+  @type socket :: :gen_udp.socket() | :gen_tcp.socket() | :ssl.sslsocket()
   @type t() :: %__MODULE__{
     host: String.t(),
     tcp_port: :inet.port_number(),
     udp_port: :inet.port_number(),
     max_udp_size: non_neg_integer(),
+    ssl_opts: [:ssl.ssl_option()],
     socket: socket()
   }
 

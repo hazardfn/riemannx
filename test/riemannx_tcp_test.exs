@@ -9,14 +9,17 @@ defmodule RiemannxTest.TCP do
   setup_all do
     Application.load(:riemannx)
     Application.put_env(:riemannx, :type, :tcp)
-    Application.put_env(:riemannx, :max_udp_size, 16384)
+    Application.put_env(:riemannx, :max_udp_size, 16_384)
+    on_exit(fn() ->
+      Application.unload(:riemannx)
+    end)
     :ok
   end
 
   setup do
     {:ok, server} = Server.start(self())
     Application.ensure_all_started(:riemannx)
-    Application.put_env(:riemannx, :max_udp_size, 16384)
+    Application.put_env(:riemannx, :max_udp_size, 16_384)
 
     on_exit(fn() ->
       Server.stop(server)
@@ -80,7 +83,7 @@ defmodule RiemannxTest.TCP do
   @tag :error
   test "Send failure is captured and returned on sync send" do
     conn = %Riemannx.Connection{
-      host: "localhost" |> to_charlist,
+      host: to_charlist("localhost"),
       tcp_port: 5554,
       #:erlang.list_to_port is better but only in 20.
       socket: RiemannxTest.Utils.term_to_port("#Port<0.9999>")
@@ -89,7 +92,7 @@ defmodule RiemannxTest.TCP do
   end
 
   property "All reasonable metrics", [:verbose] do
-    numtests(250, forall events in Prop.encoded_events() do
+    numtests(100, forall events in Prop.encoded_events() do
         events = Prop.deconstruct_events(events)
         Riemannx.send_async(events)
         (__MODULE__.assert_events_received(events) == true)
@@ -97,7 +100,7 @@ defmodule RiemannxTest.TCP do
   end
 
   property "All reasonable metrics sync", [:verbose] do
-    numtests(250, forall events in Prop.encoded_events() do
+    numtests(100, forall events in Prop.encoded_events() do
         events = Prop.deconstruct_events(events)
         :ok = Riemannx.send(events)
         (__MODULE__.assert_events_received(events) == true)

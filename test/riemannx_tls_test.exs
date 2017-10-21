@@ -1,30 +1,38 @@
-defmodule RiemannxTest.Combined do
+defmodule RiemannxTest.TLS do
   use ExUnit.Case, async: false
   use PropCheck
-  import Riemannx.Settings
   alias Riemannx.Proto.Msg
+  alias Riemannx.Connections.TLS, as: Client
+  alias RiemannxTest.Servers.TLS, as: Server
   alias RiemannxTest.Property.RiemannXPropTest, as: Prop
 
   setup_all do
     Application.load(:riemannx)
-    Application.put_env(:riemannx, :type, :combined)
+    Application.put_env(:riemannx, :type, :tls)
+    Application.put_env(:riemannx, :ssl_opts, [
+      keyfile: "test/certs/client/key.pem",
+      certfile: "test/certs/client/cert.pem",
+      server_name_indication: :disable
+    ])
+    Application.put_env(:riemannx, :tcp_port, 5554)
     Application.put_env(:riemannx, :max_udp_size, 16_384)
+    on_exit(fn() ->
+      Application.unload(:riemannx)
+    end)
     :ok
   end
 
   setup do
-    {:ok, tcp_server} = RiemannxTest.Servers.TCP.start(self())
-    {:ok, udp_server} = RiemannxTest.Servers.UDP.start(self())
+    {:ok, server} = Server.start(self())
     Application.ensure_all_started(:riemannx)
     Application.put_env(:riemannx, :max_udp_size, 16_384)
 
     on_exit(fn() ->
-      RiemannxTest.Servers.TCP.stop(tcp_server)
-      RiemannxTest.Servers.UDP.stop(udp_server)
+      Server.stop(server)
       Application.stop(:riemannx)
     end)
 
-    [tcp_server: tcp_server, udp_server: udp_server]
+    [server: server]
   end
 
   test "send_async/1 can send an event" do
@@ -35,9 +43,10 @@ defmodule RiemannxTest.Combined do
       description: "test"
     ]
     Riemannx.send_async(event)
-    assert_events_received(event)
+    assert assert_events_received(event)
   end
 
+  @tag :tls
   test "send_async/1 can send multiple events" do
     events = [
       [
@@ -63,40 +72,32 @@ defmodule RiemannxTest.Combined do
       ]
     ]
     Riemannx.send_async(events)
-    assert_events_received(events)
+    assert assert_events_received(events)
   end
 
-  test "The message is still sent given a small max_udp_size" do
-    events = [
-      [
-        service: "riemann-elixir",
-        metric: 1,
-        attributes: [a: 1],
-        description: "hurr durr"
-      ],
-      [
-        service: "riemann-elixir-2",
-        metric: 1.123,
-        attributes: [a: 1, "b": 2],
-        description: "hurr durr dee durr"
-      ],
-      [
-        service: "riemann-elixir-3",
-        metric: 5.123,
-        description: "hurr durr dee durr derp"
-      ],
-      [
-        service: "riemann-elixir-4",
-        state: "ok"
-      ]
-    ]
-    Application.put_env(:riemannx, :max_udp_size, 1)
-    Riemannx.send_async(events)
-    assert_events_received(events, :tcp)
-    Application.put_env(:riemannx, :max_udp_size, 16_384)
+  test "Test connection retry raises eventually" do
+    Application.put_env(:riemannx, :retry_count, 1)
+    Application.put_env(:riemannx, :retry_interval, 1)
+    conn = %Riemannx.Connection{
+      host: "localhost",
+      tcp_port: 5556
+    }
+    assert_raise RuntimeError, fn() ->
+      Client.handle_cast(:init, conn)
+    end
   end
 
-  property "All reasonable metrics async", [:verbose] do
+  test "Send failure is captured and returned on sync send", context do
+    conn = %Riemannx.Connection{
+      host: to_charlist("localhost"),
+      tcp_port: 5553,
+      socket: :sys.get_state(context[:server]).socket
+    }
+    GenServer.call(context[:server], :cleanup)
+    refute :ok == Client.handle_call({:send_msg, <<>>}, self(), conn)
+  end
+
+  property "All reasonable metrics", [:verbose] do
     numtests(100, forall events in Prop.encoded_events() do
         events = Prop.deconstruct_events(events)
         Riemannx.send_async(events)
@@ -113,31 +114,14 @@ defmodule RiemannxTest.Combined do
   end
 
   def assert_events_received(events) do
-    orig    = Riemannx.create_events_msg(events)
-    msg     = Msg.decode(orig)
-    events  = Enum.map(msg.events, fn(e) -> %{e | time: 0} end)
-    msg     = %{msg | events: events}
-    encoded = Msg.encode(msg)
-    receive do
-      {^encoded, x} ->
-        if byte_size(orig) > max_udp_size() do
-          assert x == :tcp
-          true
-        else
-          assert x == :udp
-          true
-        end
-    after 10_000 -> false
-    end
-  end
-  def assert_events_received(events, x) do
     msg     = events |> Riemannx.create_events_msg() |> Msg.decode()
     events  = Enum.map(msg.events, fn(e) -> %{e | time: 0} end)
     msg     = %{msg | events: events}
     encoded = Msg.encode(msg)
     receive do
-      {^encoded, ^x} -> true
-    after 10_000 -> false
+      {^encoded, :ssl} -> true
+    after
+      10_000 -> false
     end
   end
 end

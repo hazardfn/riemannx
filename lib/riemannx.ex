@@ -79,12 +79,31 @@ defmodule Riemannx do
   # Who knows if it made it? Who cares? 60% of the time it works everytime!
   ```
 
-  ### Important
-
   NOTE: If a worker is unable to send it will die and be restarted giving it
   a chance to return to a 'correct' state. On an asynchronous send this is done
   by pattern matching :ok with the send command, for synchronous sends if the
   return value is an error we kill the worker before returning the result.
+
+  ### TLS
+
+  TLS support allows you to use a secure TCP connection with your riemann
+  server, to learn more about how to set this up take a look here:
+  [Secure Riemann Traffic Using TLS](http://riemann.io/howto.html#securing-traffic-using-tls)
+
+  If you choose to use TLS you will be using a purely TCP setup, combined is not
+  supported (and shouldn't be either) with TLS:
+
+  ```elixir
+    config :riemannx, [
+      host: "127.0.0.1",
+      tcp_port: 5555,
+      type: :tls,
+      key: "path/to/key",
+      cert: "path/to/cert",
+      verify_peer: true
+    ]
+```
+  Assuming you have set up the server-side correctly this should be all you need to get started.
   """
   alias Riemannx.Proto.Event
   alias Riemannx.Proto.Msg

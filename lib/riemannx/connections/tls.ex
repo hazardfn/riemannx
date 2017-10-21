@@ -1,9 +1,9 @@
-defmodule Riemannx.Connections.TCP do
+defmodule Riemannx.Connections.TLS do
   @moduledoc """
-  Using the TCP connection will only send traffic via TCP, all traffic can be
-  sent via TCP as opposed to UDP where you are limited by packet size, there is
-  however an overhead penalty using purely TCP which is why the combined
-  connection is the recommended default.
+  TLS is a secure TCP connection, you can use this if communicating with your
+  riemann server securely is important - it carries some overhead and is much
+  slower than UDP/combined but the trade-off is obviously worth it if security
+  is a concern.
   """
   @behaviour Riemannx.Connection
   alias Riemannx.Connection
@@ -22,18 +22,17 @@ defmodule Riemannx.Connections.TCP do
   # ===========================================================================
   # Private
   # ===========================================================================
-  defp try_tcp_connect(_state, 0), do: raise "Unable to connect!"
-  defp try_tcp_connect(state, n) do
-    {:ok, tcp_socket} =
-      :gen_tcp.connect(state.host,
-                       state.tcp_port,
-                       [:binary, nodelay: true, packet: 4, active: true, reuseaddr: true])
-    tcp_socket
+  defp try_ssl_connect(_state, 0), do: raise "Unable to connect!"
+  defp try_ssl_connect(state, n) do
+    opts = [:binary, nodelay: true, packet: 4, active: true, reuseaddr: true]
+    {:ok, ssl_socket} =
+      :ssl.connect(state.host, state.tcp_port, state.ssl_opts ++ opts)
+    ssl_socket
   rescue
     e in MatchError ->
       Logger.error("[#{__MODULE__}] Unable to connect: #{inspect e}")
       :timer.sleep(retry_interval())
-      try_tcp_connect(state, n - 1)
+      try_ssl_connect(state, n - 1)
   end
 
   # ===========================================================================
@@ -53,17 +52,17 @@ defmodule Riemannx.Connections.TCP do
     host        = to_charlist(state.host)
     retry_count = retry_count()
     state       = %{state | host: host}
-    tcp_socket  = try_tcp_connect(state, retry_count)
-    {:noreply, %{state | socket: tcp_socket}}
+    ssl_socket  = try_ssl_connect(state, retry_count)
+    {:noreply, %{state | socket: ssl_socket}}
   end
   def handle_cast({:send_msg, msg}, state) do
-    :ok = :gen_tcp.send(state.socket, msg)
+    :ok = :ssl.send(state.socket, msg)
     Connection.release(self(), msg)
     {:noreply, state}
   end
 
   def handle_call({:send_msg, msg}, _from, state) do
-    reply = case :gen_tcp.send(state.socket, msg) do
+    reply = case :ssl.send(state.socket, msg) do
       :ok ->
         :ok
       {:error, code} ->
@@ -73,13 +72,13 @@ defmodule Riemannx.Connections.TCP do
     {:reply, reply, state}
   end
 
-  def handle_info({:tcp_closed, _socket}, state) do
-    {:stop, :tcp_closed, %{state | socket: nil}}
+  def handle_info({:ssl_closed, _socket}, state) do
+    {:stop, :ssl_closed, %{state | socket: nil}}
   end
-  def handle_info({:tcp, _socket, _msg}, state), do: {:noreply, state}
+  def handle_info({:ssl, _socket, _msg}, state), do: {:noreply, state}
 
   def terminate(_reason, state) do
-    if state.socket, do: :gen_tcp.close(state.socket)
+    if state.socket, do: :ssl.close(state.socket)
     :ok
   end
 end

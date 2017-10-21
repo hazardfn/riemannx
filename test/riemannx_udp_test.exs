@@ -10,14 +10,17 @@ defmodule RiemannxTest.UDP do
   setup_all do
     Application.load(:riemannx)
     Application.put_env(:riemannx, :type, :udp)
-    Application.put_env(:riemannx, :max_udp_size, 16384)
+    Application.put_env(:riemannx, :max_udp_size, 16_384)
+    on_exit(fn() ->
+      Application.unload(:riemannx)
+    end)
     :ok
   end
 
   setup do
     {:ok, server} = Server.start(self())
     Application.ensure_all_started(:riemannx)
-    Application.put_env(:riemannx, :max_udp_size, 16384)
+    Application.put_env(:riemannx, :max_udp_size, 16_384)
 
     on_exit(fn() ->
       Server.stop(server)
@@ -76,7 +79,7 @@ defmodule RiemannxTest.UDP do
     Application.put_env(:riemannx, :max_udp_size, 1)
     Riemannx.send_async(event)
     assert refute_events_received()
-    Application.put_env(:riemannx, :max_udp_size, 16384)
+    Application.put_env(:riemannx, :max_udp_size, 16_384)
   end
 
   test "send/1 ignores UDP requests over the limit" do
@@ -88,7 +91,7 @@ defmodule RiemannxTest.UDP do
     ]
     Application.put_env(:riemannx, :max_udp_size, 1)
     refute :ok == Riemannx.send(event)
-    Application.put_env(:riemannx, :max_udp_size, 16384)
+    Application.put_env(:riemannx, :max_udp_size, 16_384)
   end
 
   test "sync message to a dead server causes an error" do
@@ -118,7 +121,7 @@ defmodule RiemannxTest.UDP do
   end
 
   property "All reasonable metrics", [:verbose] do
-    numtests(250, forall events in Prop.udp_events(max_udp_size()) do
+    numtests(100, forall events in Prop.udp_events(max_udp_size()) do
         events = Prop.deconstruct_events(events)
         Riemannx.send_async(events)
         (__MODULE__.assert_events_received(events) == true)
@@ -126,7 +129,7 @@ defmodule RiemannxTest.UDP do
   end
 
   property "All reasonable metrics sync", [:verbose] do
-    numtests(250, forall events in Prop.udp_events(max_udp_size()) do
+    numtests(100, forall events in Prop.udp_events(max_udp_size()) do
         events = Prop.deconstruct_events(events)
         :ok = Riemannx.send(events)
         (__MODULE__.assert_events_received(events) == true)
@@ -142,8 +145,8 @@ defmodule RiemannxTest.UDP do
     end
   end
   def assert_events_received(events) do
-    msg     = Riemannx.create_events_msg(events) |> Msg.decode()
-    events  = msg.events |> Enum.map(fn(e) -> %{e | time: 0} end)
+    msg     = events |> Riemannx.create_events_msg() |> Msg.decode()
+    events  = Enum.map(msg.events, fn(e) -> %{e | time: 0} end)
     msg     = %{msg | events: events}
     encoded = Msg.encode(msg)
     receive do

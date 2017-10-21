@@ -67,16 +67,19 @@ defmodule Riemannx.Settings do
 
   * `:tcp`
   * `:udp`
+  * `:tls`
   * `:combined` (default)
 
   Combined is the recommended default giving you the best of both worlds, if
-  for any reason you can't use both the others are there to fall back on.
+  for any reason you can't use both the others are there to fall back on. If
+  secure communication is a concern TLS is an option which is a secure TCP-only
+  setup.
 
   REMEMBER: In combined connections your pool sizes/overflow are doubled!
 
   Default: `:combined`
   """
-  @spec type() :: :tcp | :udp | :combined
+  @spec type() :: :tcp | :udp | :tls | :combined
   def type, do: get_env(:riemannx, :type, :combined)
 
   @doc """
@@ -88,6 +91,7 @@ defmodule Riemannx.Settings do
     case type() do
       :tcp -> Riemannx.Connections.TCP
       :udp -> Riemannx.Connections.UDP
+      :tls -> Riemannx.Connections.TLS
       :combined -> Riemannx.Connections.Combined
     end
   end
@@ -127,7 +131,7 @@ defmodule Riemannx.Settings do
   Default: 16384
   """
   @spec max_udp_size() :: non_neg_integer()
-  def max_udp_size, do: get_env(:riemannx, :max_udp_size, 16384)
+  def max_udp_size, do: get_env(:riemannx, :max_udp_size, 16_384)
 
   @doc """
   The retry count is how many times riemann will attempt a connection before
@@ -149,4 +153,14 @@ defmodule Riemannx.Settings do
   """
   @spec retry_interval() :: non_neg_integer()
   def retry_interval(), do: get_env(:riemannx, :retry_interval, 5) * 1000
+
+  @doc """
+  Retrives SSL options set for a TLS connection. For more information
+  on the available options see here: http://erlang.org/doc/man/ssl.html
+
+  In order to use TLS correctly with riemann you need to specify both
+  a keyfile and a certfile.
+  """
+  @spec ssl_options() :: [:ssl.ssl_option()]
+  def ssl_options(), do: get_env(:riemannx, :ssl_opts, [])
 end

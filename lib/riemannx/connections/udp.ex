@@ -46,7 +46,7 @@ defmodule Riemannx.Connections.UDP do
   end
 
   def handle_cast(:init, state) do
-    host        = state.host |> to_charlist()
+    host        = to_charlist(state.host)
     state       = %{state | host: host}
     udp_socket  = udp_connect(state)
     {:noreply, %{state | socket: udp_socket}}
