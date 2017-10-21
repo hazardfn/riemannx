@@ -1,4 +1,8 @@
-# Riemannx | [![Build Status](https://travis-ci.org/hazardfn/riemannx.svg?branch=master "Build Status")](http://travis-ci.org/hazardfn/riemannx) [![Coverage Status](https://coveralls.io/repos/github/hazardfn/riemannx/badge.svg?branch=master)](https://coveralls.io/github/hazardfn/riemannx?branch=master)
+# Riemannx | [![Build 
+Status](https://travis-ci.org/hazardfn/riemannx.svg?branch=master "Build 
+Status")](http://travis-ci.org/hazardfn/riemannx) [![Coverage 
+Status](https://coveralls.io/repos/github/hazardfn/riemannx/badge.svg?branch=master)](https://coveralls.io/github/hazardfn/riemannx?branch=master) 
+[![Ebert](https://ebertapp.io/github/hazardfn/riemannx.svg)](https://ebertapp.io/github/hazardfn/riemannx)
 
 > A fully featured riemann client built on the reliability of poolboy and the
 > awesome power of Elixir!
