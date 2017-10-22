@@ -116,6 +116,22 @@ defmodule RiemannxTest.TCP do
     assert events == Riemannx.Proto.Event.deconstruct(event)
   end
 
+  test "Can query events w/ charlist", context do
+    event = [
+      service: "riemannx-elixir",
+      metric: 1,
+      attributes: [a: 1],
+      description: "test"
+    ]
+    event = Msg.decode(Riemannx.create_events_msg(event)).events
+    msg   = Msg.new(ok: true, events: event)
+    msg   = Msg.encode(msg)
+
+    Server.set_qr_response(context[:server], msg)
+    events = Riemannx.query('test')
+    assert events == Riemannx.Proto.Event.deconstruct(event)
+  end
+
   test "Errors are handled in query", context do
     event = [
       service: "riemannx-elixir",
