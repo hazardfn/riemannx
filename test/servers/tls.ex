@@ -6,11 +6,13 @@ defmodule RiemannxTest.Servers.TLS do
   use GenServer
 
   def start(test_pid) do
-    {:ok, server} = GenServer.start(__MODULE__, %{test_pid: test_pid, socket: nil})
+    {:ok, server} = GenServer.start(__MODULE__, %{test_pid: test_pid, socket: nil, response: nil})
     :ok = GenServer.call(server, :listen)
     :ok = GenServer.cast(server, :accept)
     {:ok, server}
   end
+
+  def set_qr_response(s, r), do: GenServer.call(s, {:qr, r})
 
   def stop(server) do
     GenServer.call(server, :cleanup)
@@ -44,6 +46,9 @@ defmodule RiemannxTest.Servers.TLS do
     if state.socket, do: :ssl.close(state.socket)
     {:reply, :ok, %{state | socket: nil}}
   end
+  def handle_call({:qr, response}, _from, state) do
+    {:reply, :ok, %{state | response: response}}
+  end
 
   def handle_cast(:accept, %{test_pid: _pid, socket: socket} = state) do
     {:ok, client} = :ssl.transport_accept(socket)
@@ -51,13 +56,17 @@ defmodule RiemannxTest.Servers.TLS do
     {:noreply, %{state | socket: client}}
   end
 
-  def handle_info({:ssl, _port, msg}, state) do
+  def handle_info({:ssl, _port, msg}, %{response: nil} = state) do
     decoded = Msg.decode(msg)
     events  = Enum.map(decoded.events, fn(e) -> %{e | time: 0} end)
     decoded = %{decoded | events: events}
     msg     = Msg.encode(decoded)
     send(state.test_pid, {msg, :ssl})
     {:noreply, state}
+  end
+  def handle_info({:ssl, _port, _msg}, %{response: qr} = state) do
+    :ssl.send(state.socket, qr)
+    {:noreply, %{state | response: nil}}
   end
   def handle_info(_msg, state) do
     {:noreply, state}

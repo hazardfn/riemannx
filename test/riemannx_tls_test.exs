@@ -97,6 +97,58 @@ defmodule RiemannxTest.TLS do
     refute :ok == Client.handle_call({:send_msg, <<>>}, self(), conn)
   end
 
+  @tag :broke
+  test "Send failure is captured and returned on query", context do
+    conn = %Riemannx.Connection{
+      host: to_charlist("localhost"),
+      tcp_port: 55,
+      #:erlang.list_to_port is better but only in 20.
+      socket: :sys.get_state(context[:server]).socket
+    }
+    GenServer.call(context[:server], :cleanup)
+    refute :ok == Client.handle_call({:send_msg, 'wrong', self()}, self(), conn)
+  end
+
+  test "Can query events", context do
+    event = [
+      service: "riemannx-elixir",
+      metric: 1,
+      attributes: [a: 1],
+      description: "test"
+    ]
+    event = Msg.decode(Riemannx.create_events_msg(event)).events
+    msg   = Msg.new(ok: true, events: event)
+    msg   = Msg.encode(msg)
+
+    Server.set_qr_response(context[:server], msg)
+    events = Riemannx.query("test")
+    assert events == Riemannx.Proto.Event.deconstruct(event)
+  end
+
+  test "Errors are handled in query", context do
+    event = [
+      service: "riemannx-elixir",
+      metric: 1,
+      attributes: [a: 1],
+      description: "test"
+    ]
+    event = Msg.decode(Riemannx.create_events_msg(event)).events
+    msg   = Msg.new(ok: false, events: event)
+    msg   = Msg.encode(msg)
+
+    Server.set_qr_response(context[:server], msg)
+    events = Riemannx.query("test")
+    assert match?([error: _e, message: _msg], events)
+  end
+
+  test "Empty queries are handled", context do
+    msg = Msg.encode(Msg.new(ok: true))
+
+    Server.set_qr_response(context[:server], msg)
+    events = Riemannx.query("test")
+    assert match?([], events)
+  end
+
   property "All reasonable metrics", [:verbose] do
     numtests(100, forall events in Prop.encoded_events() do
         events = Prop.deconstruct_events(events)

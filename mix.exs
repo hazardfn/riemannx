@@ -1,7 +1,7 @@
 defmodule Riemannx.Mixfile do
   use Mix.Project
 
-  @version "2.1.0"
+  @version "2.2.0"
 
   def project do
     [
@@ -9,7 +9,7 @@ defmodule Riemannx.Mixfile do
       version: @version,
       elixir: "~> 1.3",
       package: package(),
-      description: "A riemann client for elixir with combined UDP/TCP support",
+      description: "A riemann client for elixir with UDP/TCP/TLS support.",
       deps: deps(),
       test_coverage: [tool: ExCoveralls],
       preferred_cli_env: ["coveralls": :test, "coveralls.detail": :test, "coveralls.post": :test, "coveralls.html": :test],

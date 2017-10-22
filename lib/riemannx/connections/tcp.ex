@@ -7,16 +7,24 @@ defmodule Riemannx.Connections.TCP do
   """
   @behaviour Riemannx.Connection
   alias Riemannx.Connection
+  alias Riemannx.Proto.Msg
   import Riemannx.Settings
   require Logger
   use GenServer
 
   # ===========================================================================
+  # Attributes
+  # ===========================================================================
+  @ok Connection.query_ok()
+  @no Connection.query_failed()
+
+  # ===========================================================================
   # API
   # ===========================================================================
-  def get_worker(_e, p), do: :poolboy.checkout(p, false, :infinity)
+  def get_worker(_e, p), do: :poolboy.checkout(p, true, :infinity)
   def send(w, e), do: GenServer.call(w, {:send_msg, e})
   def send_async(w, e), do: GenServer.cast(w, {:send_msg, e})
+  def query(w, m, t), do: GenServer.call(w, {:send_msg, m, t})
   def release(w, _e, p), do: :poolboy.checkin(p, w)
 
   # ===========================================================================
@@ -72,9 +80,31 @@ defmodule Riemannx.Connections.TCP do
     Connection.release(self(), msg)
     {:reply, reply, state}
   end
+  def handle_call({:send_msg, msg, to}, _from, state) do
+    reply = case :gen_tcp.send(state.socket, msg) do
+      :ok ->
+        :ok
+      {:error, code} ->
+        [error: "#{__MODULE__} | Unable to send event: #{code}", message: msg]
+    end
+    Connection.release(self(), msg)
+    {:reply, reply, %{state | to: to}}
+  end
 
   def handle_info({:tcp_closed, _socket}, state) do
     {:stop, :tcp_closed, %{state | socket: nil}}
+  end
+  def handle_info({_, _, <<@ok, r :: binary>> = m}, s) when bit_size(r) > 0 do
+    Kernel.send(s.to, {:ok, Msg.decode(m)})
+    {:noreply, %{s | to: nil}}
+  end
+  def handle_info({_, _, <<@no, r :: binary>> = m}, s) when bit_size(r) > 0 do
+    Kernel.send(s.to, [error: "Query failed", message: Msg.decode(m)])
+    {:noreply, %{s | to: nil}}
+  end
+  def handle_info({_, _, @ok}, %{to: to} = s) when is_pid(to) do
+    Kernel.send(s.to, {:ok, []})
+    {:noreply, %{s | to: nil}}
   end
   def handle_info({:tcp, _socket, _msg}, state), do: {:noreply, state}
 

@@ -80,7 +80,6 @@ defmodule RiemannxTest.TCP do
     end
   end
 
-  @tag :error
   test "Send failure is captured and returned on sync send" do
     conn = %Riemannx.Connection{
       host: to_charlist("localhost"),
@@ -89,6 +88,56 @@ defmodule RiemannxTest.TCP do
       socket: RiemannxTest.Utils.term_to_port("#Port<0.9999>")
     }
     refute :ok == Client.handle_call({:send_msg, <<>>}, self(), conn)
+  end
+
+  test "Send failure is captured and returned on query" do
+    conn = %Riemannx.Connection{
+      host: to_charlist("localhost"),
+      tcp_port: 5554,
+      #:erlang.list_to_port is better but only in 20.
+      socket: RiemannxTest.Utils.term_to_port("#Port<0.9999>")
+    }
+    refute :ok == Client.handle_call({:send_msg, <<>>, self()}, self(), conn)
+  end
+
+  test "Can query events", context do
+    event = [
+      service: "riemannx-elixir",
+      metric: 1,
+      attributes: [a: 1],
+      description: "test"
+    ]
+    event = Msg.decode(Riemannx.create_events_msg(event)).events
+    msg   = Msg.new(ok: true, events: event)
+    msg   = Msg.encode(msg)
+
+    Server.set_qr_response(context[:server], msg)
+    events = Riemannx.query("test")
+    assert events == Riemannx.Proto.Event.deconstruct(event)
+  end
+
+  test "Errors are handled in query", context do
+    event = [
+      service: "riemannx-elixir",
+      metric: 1,
+      attributes: [a: 1],
+      description: "test"
+    ]
+    event = Msg.decode(Riemannx.create_events_msg(event)).events
+    msg   = Msg.new(ok: false, events: event)
+    msg   = Msg.encode(msg)
+
+    Server.set_qr_response(context[:server], msg)
+    events = Riemannx.query("test")
+    assert match?([error: _e, message: _msg], events)
+  end
+
+  test "Empty queries are handled", context do
+    msg = Msg.encode(Msg.new(ok: true))
+
+    Server.set_qr_response(context[:server], msg)
+    events = Riemannx.query("test")
+    assert match?([], events)
   end
 
   property "All reasonable metrics", [:verbose] do

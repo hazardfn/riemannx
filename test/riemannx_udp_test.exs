@@ -120,6 +120,10 @@ defmodule RiemannxTest.UDP do
     refute :ok == Client.handle_call({:send_msg, <<>>}, self(), conn)
   end
 
+  test "Can't query events" do
+    assert match?([error: _e,  message: _m], Riemannx.query("test"))
+  end
+
   property "All reasonable metrics", [:verbose] do
     numtests(100, forall events in Prop.udp_events(max_udp_size()) do
         events = Prop.deconstruct_events(events)

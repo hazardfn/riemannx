@@ -11,7 +11,8 @@
 
 Riemannx is a riemann client built in elixir, currently it's the only client in elixir that supports UDP. It has an experimental combined option that makes the best of both TCP and UDP - in the combined mode UDP is the favoured approach but if the message size exceeds the max udp size set TCP will be used.
 
-It also (as of 2.1.0) supports TLS connections.
+As of 2.1.0 TLS connections are supported.
+As of 2.2.0 you can now query the index.
 
 ## Contents
 
@@ -24,6 +25,7 @@ It also (as of 2.1.0) supports TLS connections.
     * [Synchronous](#sync)
     * [Asynchronous](#async)
     * [TLS](#tls)
+    * [Querying the index](#querying)
 4. [Contributions](#contribute)
 5. [Acknowledgements](#ack)
 
@@ -157,6 +159,24 @@ If you choose to use TLS you will be using a purely TCP setup, combined is not s
   ]
 ```
 Assuming you have set up the server-side correctly this should be all you need to get started.
+
+### Querying the index<a name="querying"></a>
+
+Riemann has the concept of a queryable index which allows you to search for specific events, indexes must be specially created in your config otherwise the server will return a "no index" error.
+
+```elixir
+# Lets send an event that we can then query
+Riemannx.send([service: "riemannx", metric: 5.0, attributes: [v: "2.2.0"]])
+
+# Let's fish it out
+events = Riemannx.query('service ~= "riemannx"')
+
+#  [%{attributes: %{"v" => "2.2.0"}, description: nil, host: _,
+#     metric: nil, service: "riemannx", state: nil, tags: [],
+#     time: _, ttl: _}]
+```
+
+For more information on querying and the language features have a look at the [Core Concepts](http://riemann.io/concepts.html).
 
 ## 4. Contributions<a name="contribute"></a>
 
