@@ -1,7 +1,7 @@
 defmodule Riemannx.Mixfile do
   use Mix.Project
 
-  @version "2.2.0"
+  @version "2.2.1"
 
   def project do
     [
@@ -16,7 +16,8 @@ defmodule Riemannx.Mixfile do
       elixirc_paths: elixirc_paths(Mix.env),
       aliases: [test: "test --no-start"],
       docs: [main: "Riemannx", source_ref: "v#{@version}",
-             source_url: "https://github.com/hazardfn/riemannx"]
+             source_url: "https://github.com/hazardfn/riemannx",
+             extras: ["README.md"]]
     ]
   end
 

@@ -9,13 +9,19 @@ defmodule Riemannx.Connections.Combined do
 
   ## Special Notes
 
-  The callback functions in this module simply route to the callback functions
+  * The callback functions in this module simply route to the callback functions
   in either the TCP or UDP modules based on a simple byte_size check of the
   given event.
 
-  Your pool size and overflow configuration is doubled when using a combined
+  * Your pool size and overflow configuration is doubled when using a combined
   connection - for example if you set a pool size of 10 the actual pool size
   will be 20 to accomodate both UDP (10 workers) and TCP (10 workers).
+
+  * Even though this is the recommended default that is based on my use-case
+  for this library. Your requirements may be VERY different. Using UDP at all
+  is unreliable but in my use case I don't care if some events don't make it,
+  in situations it is absolutely critical your events make it in order and
+  reliably you should use TCP. In fact Riemann themeselves recommend TCP only.
   """
   @behaviour Riemannx.Connection
 

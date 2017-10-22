@@ -1,4 +1,6 @@
 defmodule RiemannxTest.Utils do
+  @moduledoc false
+
   def term_to_port(<<"#Port<0.", id :: binary>>) do
     n = id |> String.trim_trailing(">") |> String.to_integer()
     term_to_port(n)

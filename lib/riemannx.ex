@@ -20,7 +20,7 @@ defmodule Riemannx do
     type: :combined, # A choice of :tcp, :udp, :combined or :tls
     retry_count: 5, # How many times to re-attempt a TCP connection before crashing.
     retry_interval: 1, # Interval to wait before the next TCP connection attempt.
-    ssl_opts: [], # Used for tls, see TLS section for details.
+    ssl_opts: [], # Used for tls, see TLS section in the README for details.
 
     # Poolboy settings
     pool_size: 5, # Pool size will be 10 if you use a combined type.
@@ -29,10 +29,28 @@ defmodule Riemannx do
   ]
   ```
 
-  Riemannx supports two `send` methods, one asynchronous the other synchronous:
+  ### Worker Behaviour
 
-  ### Synchronous Send
+  If a worker is unable to send it will die and be restarted giving it
+  a chance to return to a 'correct' state. On an asynchronous send this is done
+  by pattern matching :ok with the send command, for synchronous sends if the
+  return value is an error we kill the worker before returning the result.
+  """
+  alias Riemannx.Proto.Event
+  alias Riemannx.Proto.Msg
+  alias Riemannx.Proto.Query
+  alias Riemannx.Connection, as: Conn
+  import Riemannx.Settings
 
+  # ===========================================================================
+  # Types
+  # ===========================================================================
+  @type events :: [Keyword.t()] | Keyword.t()
+
+  # ===========================================================================
+  # API
+  # ===========================================================================
+  @doc """
   Synchronous sending allows you to handle the errors that might occur during
   send, below is an example showing both how this error looks and what happens
   on a successful send:
@@ -55,9 +73,15 @@ defmodule Riemannx do
       msg = encoded_msg |> Riemannx.Proto.Msg.decode()
   end
   ```
+  """
+  @spec send(events) :: :ok | Conn.error()
+  def send(events) do
+    events
+    |> create_events_msg()
+    |> enqueue_sync()
+  end
 
-  ### Asynchronous Send
-
+  @doc """
   Asynchronous sending is much faster but you never really know if your message
   made it, in a lot of cases this kind of sending is safe enough and for most
   use cases the recommended choice. It's fairly simple to implement:
@@ -72,40 +96,15 @@ defmodule Riemannx do
 
   # Who knows if it made it? Who cares? 60% of the time it works everytime!
   ```
+  """
+  @spec send_async(events()) :: :ok
+  def send_async(events) do
+    events
+    |> create_events_msg()
+    |> enqueue()
+  end
 
-  NOTE: If a worker is unable to send it will die and be restarted giving it
-  a chance to return to a 'correct' state. On an asynchronous send this is done
-  by pattern matching :ok with the send command, for synchronous sends if the
-  return value is an error we kill the worker before returning the result.
-
-  ### TLS
-
-  TLS support allows you to use a secure TCP connection with your riemann
-  server, to learn more about how to set this up take a look here:
-  [Secure Traffic](http://riemann.io/howto.html#securing-traffic-using-tls)
-
-  If you choose to use TLS you will be using a purely TCP setup, combined is
-  not supported (and shouldn't be either) with TLS:
-
-  ```elixir
-    config :riemannx, [
-      host: "127.0.0.1",
-      tcp_port: 5555,
-      type: :tls,
-      # SSL Opts are passed to the underlying ssl erlang interface
-      # See available options here: http://erlang.org/doc/man/ssl.html
-      ssl_opts: [
-        keyfile: "path/to/key",
-        certfile: "path/to/cert",
-        verify_peer: true
-      ]
-    ]
-  ```
-  Assuming you have set up the server-side correctly this should be all you
-  need to get started.
-
-  ### Querying the index
-
+  @doc """
   Riemann has the concept of a queryable index which allows you to search for
   specific events, indexes must be specially created in your config otherwise
   the server will return a "no index" error.
@@ -125,25 +124,7 @@ defmodule Riemannx do
   For more information on querying and the language features have a look at
   the [Core Concepts](http://riemann.io/concepts.html).
   """
-  alias Riemannx.Proto.Event
-  alias Riemannx.Proto.Msg
-  alias Riemannx.Proto.Query
-  import Riemannx.Settings
-
-  @type events :: [Keyword.t()] | Keyword.t()
-
-  def send(events) do
-    events
-    |> create_events_msg()
-    |> enqueue_sync()
-  end
-
-  def send_async(events) do
-    events
-    |> create_events_msg()
-    |> enqueue()
-  end
-
+  @spec query(String.t() | list(), timeout()) :: {:ok, events()} | Conn.error()
   def query(_q, _t \\ 5000)
   def query(query, timeout) when is_list(query) do
     query
@@ -158,12 +139,18 @@ defmodule Riemannx do
     |> enqueue_query(timeout)
   end
 
+  @doc """
+  Constructs a protobuf message based on an event or list of events.
+  """
   def create_events_msg(events) do
     [events: Event.list_to_events(events)]
     |> Msg.new
     |> Msg.encode
   end
 
+  # ===========================================================================
+  # Private
+  # ===========================================================================
   defp enqueue_query(message, timeout) do
     result = case type() do
       type when type in [:tls, :tcp] ->
