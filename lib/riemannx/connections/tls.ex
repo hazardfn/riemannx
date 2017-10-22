@@ -4,6 +4,12 @@ defmodule Riemannx.Connections.TLS do
   riemann server securely is important - it carries some overhead and is much
   slower than UDP/combined but the trade-off is obviously worth it if security
   is a concern.
+
+  ## Special Notes
+
+  * This library was built for my use-case which required speed at the expense
+  of reliability hence why combined is the default. If, however you require
+  guarantees on message order then TCP / TLS is the way to go.
   """
   @behaviour Riemannx.Connection
   alias Riemannx.Connection

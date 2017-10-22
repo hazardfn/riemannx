@@ -53,15 +53,10 @@ defmodule Riemannx.Proto.Helpers.Event do
     args
     |> Enum.into(%{})
     |> Map.put_new(:time, :erlang.system_time(:seconds))
-    |> Map.put_new_lazy(:host, &default_event_host/0)
     |> set_attributes_field
     |> set_metric_pb_fields
     |> Map.to_list
     |> mod.new()
-  end
-
-  defp default_event_host do
-    event_host_setting() || machine_hostname()
   end
 
   defp set_attributes_field(%{attributes: a} = map) when not is_nil(a) do
@@ -79,13 +74,4 @@ defmodule Riemannx.Proto.Helpers.Event do
     raise InvalidMetricError, metric: m
   end
   defp set_metric_pb_fields(map), do: map
-
-  defp event_host_setting do
-    Application.get_env(:riemann, :event_host)
-  end
-
-  defp machine_hostname do
-    {:ok, hostname} = :inet.gethostname
-    :erlang.list_to_binary(hostname)
-  end
 end

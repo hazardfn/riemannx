@@ -1,0 +1,15 @@
+:0: Unknown type erl_parse:abstract_type/0
+
+## Some weird output from the 1.4.5/OTP 18 build
+The call _@1:'host'() requires that _@1 is of type atom() | tuple() not #{}
+The call _@2:'tcp_port'() requires that _@2 is of type atom() | tuple() not #{}
+The call _@1:'to'() requires that _@1 is of type atom() | tuple() not #{}
+The call _@3:'ssl_opts'() requires that _@3 is of type atom() | tuple() not #{}
+The call _@2:'tcp_port'() requires that _@2 is of type atom() | tuple() not #{}
+The call _@1:'host'() requires that _@1 is of type atom() | tuple() not #{}
+The call _@1:'to'() requires that _@1 is of type atom() | tuple() not #{}
+The call _@1:'max_udp_size'() requires that _@1 is of type atom() | tuple() not #{}
+The call _@2:'test_pid'() requires that _@2 is of type atom() | tuple() not #{}
+The call _@1:'socket'() requires that _@1 is of type atom() | tuple() not #{}
+The call _@2:'test_pid'() requires that _@2 is of type atom() | tuple() not #{}
+The call _@1:'socket'() requires that _@1 is of type atom() | tuple() not #{}

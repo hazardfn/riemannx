@@ -111,7 +111,7 @@ defmodule RiemannxTest.UDP do
 
   test "Send failure is captured and returned on sync send" do
     conn = %Riemannx.Connection{
-      host: "localhost" |> to_charlist,
+      host: to_charlist("localhost"),
       udp_port: 5554,
       max_udp_size: 100,
       #:erlang.list_to_port is better but only in 20.

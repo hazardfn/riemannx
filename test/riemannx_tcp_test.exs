@@ -173,8 +173,8 @@ defmodule RiemannxTest.TCP do
   end
 
   def assert_events_received(events) do
-    msg     = Riemannx.create_events_msg(events) |> Msg.decode()
-    events  = msg.events |> Enum.map(fn(e) -> %{e | time: 0} end)
+    msg     = Msg.decode(Riemannx.create_events_msg(events))
+    events  = Enum.map(msg.events, fn(e) -> %{e | time: 0} end)
     msg     = %{msg | events: events}
     encoded = Msg.encode(msg)
     receive do

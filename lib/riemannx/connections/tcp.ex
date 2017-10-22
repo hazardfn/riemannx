@@ -4,6 +4,12 @@ defmodule Riemannx.Connections.TCP do
   sent via TCP as opposed to UDP where you are limited by packet size, there is
   however an overhead penalty using purely TCP which is why the combined
   connection is the recommended default.
+
+  ## Special Notes
+
+  * This library was built for my use-case which required speed at the expense
+  of reliability hence why combined is the default. If, however you require
+  guarantees on message order then TCP / TLS is the way to go.
   """
   @behaviour Riemannx.Connection
   alias Riemannx.Connection
