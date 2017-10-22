@@ -181,13 +181,19 @@ For more information on querying and the language features have a look at the [C
 
 ## 4. Contributions<a name="contribute"></a>
 
-Contributions are warmly received, here are some ideas I have had of things I'd like to improve or do:
+Contributions are warmly received, check out the Projects section for some ideas I have written down and for the latest on what is underway.
 
-  * Performance Tests / Benchmarks for each mode (:tcp, :udp, :combined).
+### Guidelines<a name="guidelines"></a>
 
-  * Cleanup Proto.Helpers.Event - it's a little messy in there some clean well documented code would be suuuuper.
+This repository uses the [Gitflow](https://www.atlassian.com/git/tutorials/comparing-workflows#gitflow-workflow) workflow meaning *all PR's should be pointed towards the develop branch!*. Below are some things to consider before creating a PR:
 
-  * Some more property tests - I think some more negative testing is required here, throwing some things at it it shouldn't handle and seeing if it holds.
+* I would like to maintain test coverage at *100%!* - I may let this slide in urgent cases (bugs etc.)
+
+* To avoid congesting Travis unnecessarily it would be appreciated if you check the following locally first:
+  - `mix coveralls.html` (Aim for 100%)
+  - `mix dialyzer` (Takes a while and I appreciate you can't test all erlang/elixir versions)
+
+* I consider this client feature complete and fully compatible with 0.2.x versions of Riemann, if your PR adds something only 0.x.x can handle I'd appreciate a heads up.
 
 ## 5. Acknowledgements<a name="ack"></a>
 
