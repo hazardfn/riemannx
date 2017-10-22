@@ -87,6 +87,7 @@ config :riemannx, [
   type: :combined, # A choice of :tcp, :udp, :combined or :tls
   retry_count: 5, # How many times to re-attempt a TCP connection before crashing.
   retry_interval: 1, # Interval to wait before the next TCP connection attempt.
+  ssl_opts: [], # Used for tls, see TLS section for details.
 
   # Poolboy settings
   pool_size: 5, # Pool size will be 10 if you use a combined type.

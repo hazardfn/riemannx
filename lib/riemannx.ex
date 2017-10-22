@@ -10,29 +10,23 @@ defmodule Riemannx do
   that everything just happens automagically (save for the actual sending of
   course):
 
-  ```
-    config :riemannx, [
-      # Client settings
-      host: "127.0.0.1",
-      tcp_port: 5555,
-      udp_port: 5555,
+  ```elixir
+  config :riemannx, [
+    # Client settings
+    host: "127.0.0.1",
+    tcp_port: 5555,
+    udp_port: 5555,
+    max_udp_size: 16384, # Must be the same as server side, the default is riemann's default.
+    type: :combined, # A choice of :tcp, :udp, :combined or :tls
+    retry_count: 5, # How many times to re-attempt a TCP connection before crashing.
+    retry_interval: 1, # Interval to wait before the next TCP connection attempt.
+    ssl_opts: [], # Used for tls, see TLS section for details.
 
-      # Must be the same as server side, the default is riemann's default.
-      max_udp_size: 16384,
-
-      type: :combined,
-
-      # How many times to re-attempt a TCP connection before crashing.
-      retry_count: 5,
-
-      # Interval to wait before the next TCP connection attempt.
-      retry_interval: 1,
-
-      # Poolboy settings
-      pool_size: 5, # Pool size will be 10 if you use a combined type.
-      max_overflow: 5, # Max overflow will be 10 if you use a combined type.
-      strategy: :fifo # See Riemannx.Settings documentation for more info.
-    ]
+    # Poolboy settings
+    pool_size: 5, # Pool size will be 10 if you use a combined type.
+    max_overflow: 5, # Max overflow will be 10 if you use a combined type.
+    strategy: :fifo, # See Riemannx.Settings documentation for more info.
+  ]
   ```
 
   Riemannx supports two `send` methods, one asynchronous the other synchronous:
@@ -88,22 +82,48 @@ defmodule Riemannx do
 
   TLS support allows you to use a secure TCP connection with your riemann
   server, to learn more about how to set this up take a look here:
-  [Secure Riemann Traffic Using TLS](http://riemann.io/howto.html#securing-traffic-using-tls)
+  [Secure Traffic](http://riemann.io/howto.html#securing-traffic-using-tls)
 
-  If you choose to use TLS you will be using a purely TCP setup, combined is not
-  supported (and shouldn't be either) with TLS:
+  If you choose to use TLS you will be using a purely TCP setup, combined is
+  not supported (and shouldn't be either) with TLS:
 
   ```elixir
     config :riemannx, [
       host: "127.0.0.1",
       tcp_port: 5555,
       type: :tls,
-      key: "path/to/key",
-      cert: "path/to/cert",
-      verify_peer: true
+      # SSL Opts are passed to the underlying ssl erlang interface
+      # See available options here: http://erlang.org/doc/man/ssl.html
+      ssl_opts: [
+        keyfile: "path/to/key",
+        certfile: "path/to/cert",
+        verify_peer: true
+      ]
     ]
-```
-  Assuming you have set up the server-side correctly this should be all you need to get started.
+  ```
+  Assuming you have set up the server-side correctly this should be all you
+  need to get started.
+
+  ### Querying the index
+
+  Riemann has the concept of a queryable index which allows you to search for
+  specific events, indexes must be specially created in your config otherwise
+  the server will return a "no index" error.
+
+  ```elixir
+  # Lets send an event that we can then query
+  Riemannx.send([service: "riemannx", metric: 5.0, attributes: [v: "2.2.0"]])
+
+  # Let's fish it out
+  events = Riemannx.query('service ~= "riemannx"')
+
+  #  [%{attributes: %{"v" => "2.2.0"}, description: nil, host: _,
+  #     metric: nil, service: "riemannx", state: nil, tags: [],
+  #     time: _, ttl: _}]
+  ```
+
+  For more information on querying and the language features have a look at
+  the [Core Concepts](http://riemann.io/concepts.html).
   """
   alias Riemannx.Proto.Event
   alias Riemannx.Proto.Msg
