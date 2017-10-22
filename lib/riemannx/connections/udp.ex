@@ -17,11 +17,12 @@ defmodule Riemannx.Connections.UDP do
     if byte_size(e) > max_udp_size() do
       [error: "Transmission too large!", message: e]
     else
-      :poolboy.checkout(p, false, :infinity)
+      :poolboy.checkout(p, true, :infinity)
     end
   end
   def send(w, e), do: GenServer.call(w, {:send_msg, e})
   def send_async(w, e), do: GenServer.cast(w, {:send_msg, e})
+  def query(_, m, _), do: [error: "Querying via UDP is not supported", message: m]
   def release(w, _e, p), do: :poolboy.checkin(p, w)
 
   # ===========================================================================

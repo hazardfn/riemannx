@@ -107,8 +107,8 @@ defmodule Riemannx do
   """
   alias Riemannx.Proto.Event
   alias Riemannx.Proto.Msg
+  alias Riemannx.Proto.Query
   import Riemannx.Settings
-  require Logger
 
   @type events :: [Keyword.t()] | Keyword.t()
 
@@ -124,10 +124,44 @@ defmodule Riemannx do
     |> enqueue()
   end
 
+  def query(_q, _t \\ 5000)
+  def query(query, timeout) when is_list(query) do
+    query
+    |> :erlang.list_to_binary
+    |> query(timeout)
+  end
+  def query(query, timeout) when is_binary(query) do
+    query = [query: Query.new(string: query)]
+    query
+    |> Msg.new()
+    |> Msg.encode()
+    |> enqueue_query(timeout)
+  end
+
   def create_events_msg(events) do
     [events: Event.list_to_events(events)]
     |> Msg.new
     |> Msg.encode
+  end
+
+  defp enqueue_query(message, timeout) do
+    result = case type() do
+      type when type in [:tls, :tcp] ->
+        worker = Riemannx.Connection.get_worker(message)
+        if is_pid(worker), do: Riemannx.Connection.query(worker, message, self())
+      type when type in [:combined, :udp] ->
+        Riemannx.Connection.query(nil, message, self())
+    end
+    if result == :ok do
+      receive do
+        {:ok, []}  -> []
+        {:ok, msg} -> Event.deconstruct(msg.events)
+        error      -> error
+      after timeout -> [error: "Query timed out", message: message]
+      end
+    else
+      result
+    end
   end
 
   defp enqueue_sync(message) do
@@ -137,16 +171,6 @@ defmodule Riemannx do
         unless result == :ok, do: GenServer.stop(worker, :unable_to_send)
         result
       error ->
-        Logger.warn("""
-          #{__MODULE__} | Received an error while fetching a worker, it's possible
-          the data you were sending was too large for your chosen strategy:
-
-          Error: #{inspect error}
-          Type: #{inspect type()}
-
-          If you see this log entry often you should maybe think about changing
-          your strategy.
-        """)
         error
     end
   end
@@ -155,17 +179,7 @@ defmodule Riemannx do
     case Riemannx.Connection.get_worker(message) do
       worker when is_pid(worker) ->
         Riemannx.Connection.send_async(worker, message)
-      error ->
-        Logger.warn("""
-          #{__MODULE__} | Received an error while fetching a worker, it's possible
-          the data you were sending was too large for your chosen strategy:
-
-          Error: #{inspect error}
-          Type: #{inspect type()}
-
-          If you see this log entry often you should maybe think about changing
-          your strategy.
-        """)
+      _error ->
         :ok
     end
   end

@@ -96,6 +96,22 @@ defmodule RiemannxTest.Combined do
     Application.put_env(:riemannx, :max_udp_size, 16_384)
   end
 
+  test "Queries are forwarded via TCP", context do
+    event = [
+      service: "riemannx-elixir",
+      metric: 1,
+      attributes: [a: 1],
+      description: "test"
+    ]
+    event = Msg.decode(Riemannx.create_events_msg(event)).events
+    msg   = Msg.new(ok: true, events: event)
+    msg   = Msg.encode(msg)
+
+    RiemannxTest.Servers.TCP.set_qr_response(context[:tcp_server], msg)
+    events = Riemannx.query("test")
+    assert events == Riemannx.Proto.Event.deconstruct(event)
+  end
+
   property "All reasonable metrics async", [:verbose] do
     numtests(100, forall events in Prop.encoded_events() do
         events = Prop.deconstruct_events(events)
