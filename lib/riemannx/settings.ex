@@ -163,4 +163,35 @@ defmodule Riemannx.Settings do
   """
   @spec ssl_options() :: [:ssl.ssl_option()]
   def ssl_options(), do: get_env(:riemannx, :ssl_opts, [])
+
+  @doc """
+  Riemannx can inject a host name in your events if you don't supply one before
+  sending it - if you don't set this in your config and don't put one in your
+  event we will use `:inet.gethostname()` to add one for you.
+
+  Riemannx is smart and will only call `:inet.gethostname()` once and save the
+  result so don't worry about it being called for every event!
+  """
+  @spec events_host() :: binary()
+  def events_host() do
+    inet_host  = inet_host()
+    event_host = get_env(:riemannx, :event_host, nil)
+    cond do
+      inet_host != nil && event_host == nil ->
+        inet_host
+
+      event_host == nil && inet_host == nil ->
+        {:ok, host} = :inet.gethostname
+        host        = to_string(host)
+        put_env(:riemannx, :inet_host, host)
+        host
+
+      true ->
+        event_host
+    end
+  end
+
+  ## It's best nobody knows about this, it's internal.
+  @spec inet_host() :: binary() | nil
+  defp inet_host(), do: get_env(:riemannx, :inet_host, nil)
 end
