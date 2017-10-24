@@ -22,12 +22,15 @@ As of 2.2.0 you can now query the index.
     * [Riemann](#riemann)
 2. [Installation](#installation)
 3. [Examples](#examples)
+    * [Config](#config)
     * [Synchronous](#sync)
     * [Asynchronous](#async)
     * [TLS](#tls)
     * [Querying the index](#querying)
-4. [Contributions](#contribute)
-5. [Acknowledgements](#ack)
+4. [Special Notes](#special)
+    * [Host Injection](#host-inj)
+5. [Contributions](#contribute)
+6. [Acknowledgements](#ack)
 
 ## 1. Prerequisites<a name="prerequisites"></a>
 
@@ -63,7 +66,7 @@ Installation happens just like any other elixir library, add it to your mix file
 
 ```elixir
 def deps do
-  [{:riemannx, "~> 2.0.0"}]
+  [{:riemannx, "~> 2.3"}]
 end
 ```
 
@@ -75,7 +78,9 @@ applications: [:logger, :riemannx]
 
 ## 3. Examples<a name="examples"></a>
 
-To use riemannx all you need to do is fill out some config entries - after that everything just happens automagically (save for the actual sending of course):
+To use riemannx all you need to do is fill out some config entries - after that everything just happens automagically (save for the actual sending of course). Below is a comprehensive list of available options:
+
+### Config<a name="config"></a>
 
 ```elixir
 config :riemannx, [
@@ -84,14 +89,15 @@ config :riemannx, [
   tcp_port: 5555,
   udp_port: 5555,
   max_udp_size: 16384, # Must be the same as server side, the default is riemann's default.
+  event_host: "test_host" # If you don't set this riemannx will use :inet.gethostname()
   type: :combined, # A choice of :tcp, :udp, :combined or :tls
   retry_count: 5, # How many times to re-attempt a TCP connection before crashing.
   retry_interval: 1, # Interval to wait before the next TCP connection attempt.
   ssl_opts: [], # Used for tls, see TLS section for details.
 
   # Poolboy settings
-  pool_size: 5, # Pool size will be 10 if you use a combined type.
-  max_overflow: 5, # Max overflow will be 10 if you use a combined type.
+  pool_size: 5, # Pool size will be 5x2 (10) if you use a combined type.
+  max_overflow: 5, # Max overflow will be 5x2 (10) if you use a combined type.
   strategy: :fifo, # See Riemannx.Settings documentation for more info.
 ]
 ```
@@ -179,7 +185,23 @@ events = Riemannx.query('service ~= "riemannx"')
 
 For more information on querying and the language features have a look at the [Core Concepts](http://riemann.io/concepts.html).
 
-## 4. Contributions<a name="contribute"></a>
+## 4. Special Notes<a name="special"></a>
+
+This section contains some notes on the behaviour of riemannx that may interest you or answer questions you have about certain things.
+
+### Host Injection<a name="host-inj"></a>
+
+It sounds fancier than it is but basically describes the functionality that adds a host entry to your event if you haven't specified one. There are 3 ways to specify a host:
+
+* Do it before you send the event (add a :host key to the keyword list)
+
+* Add the `:event_host` key to your config.
+
+* Let riemannx do it using `:inet.gethostname()` - we only call that once and save the result, it is not called on every event.
+
+The last 2 options are the most favourable as they will keep your code clean.
+
+## 5. Contributions<a name="contribute"></a>
 
 Contributions are warmly received, check out the Projects section for some ideas I have written down and for the latest on what is underway.
 
@@ -195,6 +217,6 @@ This repository uses the [Gitflow](https://www.atlassian.com/git/tutorials/compa
 
 * I consider this client feature complete and fully compatible with 0.2.x versions of Riemann, if your PR adds something only 0.x.x can handle I'd appreciate a heads up.
 
-## 5. Acknowledgements<a name="ack"></a>
+## 6. Acknowledgements<a name="ack"></a>
 
 A portion of code has been borrowed from the original [elixir-riemann client](https://github.com/koudelka/elixir-riemann). Most of the protobuf stuff comes from there.
