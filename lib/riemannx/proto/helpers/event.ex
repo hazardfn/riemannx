@@ -3,6 +3,7 @@ defmodule Riemannx.Proto.Helpers.Event do
 
   alias Riemannx.Proto.Attribute
   alias Riemannx.Errors.InvalidMetricError
+  alias Riemannx.Settings
 
   defmacro __using__(_opts) do
     quote do
@@ -53,6 +54,7 @@ defmodule Riemannx.Proto.Helpers.Event do
     args
     |> Enum.into(%{})
     |> Map.put_new(:time, :erlang.system_time(:seconds))
+    |> Map.put_new_lazy(:host, &Settings.events_host/0)
     |> set_attributes_field
     |> set_metric_pb_fields
     |> Map.to_list
