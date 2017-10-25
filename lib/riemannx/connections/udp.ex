@@ -42,6 +42,7 @@ defmodule Riemannx.Connections.UDP do
   @spec init(Connection.t()) :: {:ok, Connection.t()}
   def init(conn) do
     Process.flag(:trap_exit, true)
+    Process.flag(:priority, conn.priority)
     GenServer.cast(self(), :init)
     {:ok, conn}
   end
