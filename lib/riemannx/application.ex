@@ -9,6 +9,7 @@ defmodule Riemannx.Application do
       tcp_port: tcp_port(),
       udp_port: udp_port(),
       max_udp_size: max_udp_size(),
+      priority: priority!(),
       ssl_opts: ssl_options()
     }
     children =

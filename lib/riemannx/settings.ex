@@ -6,6 +6,7 @@ defmodule Riemannx.Settings do
   about what they are.
   """
   import Application
+  @type priority :: :low | :normal | :high
 
   @doc """
   The name of the poolboy pool, for ease of use this is hard-coded to
@@ -188,6 +189,28 @@ defmodule Riemannx.Settings do
 
       true ->
         event_host
+    end
+  end
+
+  @doc """
+  Riemannx can start workers with a certain priority allowing you to decide
+  what precedence your events take in comparison to the rest of your
+  application.
+
+  For example you have an application where a fast response is incredibly
+  important and sending events shouldn't eat up time under periods of high
+  load then you can set the priority here to :low.
+
+  IMPORTANT: Setting an incorrect value or :max will cause riemannx to die.
+
+  Defaut: :normal
+  """
+  @spec priority!() :: priority() | no_return()
+  def priority!() do
+    case get_env(:riemannx, :priority, :normal) do
+      p when p in [:low, :normal, :high] -> p
+      p when p in [:max] -> raise("You should NOT use the max priority!")
+      p -> raise("#{inspect p} is not a valid priority!")
     end
   end
 
