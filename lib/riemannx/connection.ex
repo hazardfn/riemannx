@@ -14,10 +14,9 @@ defmodule Riemannx.Connection do
   # ===========================================================================
   defstruct [
     host: nil,
-    tcp_port: nil,
-    udp_port: nil,
-    max_udp_size: nil,
-    ssl_opts: [],
+    tcp: nil,
+    udp: nil,
+    tls: nil,
     to: nil,
     priority: nil,
     socket: nil
@@ -34,10 +33,9 @@ defmodule Riemannx.Connection do
   @type socket :: :gen_udp.socket() | :gen_tcp.socket() | :ssl.sslsocket()
   @type t() :: %__MODULE__{
     host: String.t(),
-    tcp_port: :inet.port_number(),
-    udp_port: :inet.port_number(),
-    max_udp_size: non_neg_integer(),
-    ssl_opts: [:ssl.ssl_option()],
+    tcp: [port: :inet.port_number()],
+    udp: [port: :inet.port_number(), size: non_neg_integer()],
+    tls: [ssl_opts: [:ssl.ssl_option]],
     priority: Riemannx.Settings.priority(),
     to: pid(),
     socket: socket()

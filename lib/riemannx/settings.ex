@@ -6,14 +6,14 @@ defmodule Riemannx.Settings do
   about what they are.
   """
   import Application
-  @type priority :: :low | :normal | :high
+  @type priority() :: :low | :normal | :high
 
   @doc """
   The name of the poolboy pool, for ease of use this is hard-coded to
   `:riemannx_pool`
   """
   @spec pool_name() :: :riemannx_pool
-  def pool_name, do: :riemannx_pool
+  def pool_name(), do: :riemannx_pool
 
   @doc """
   The size of your worker pool, adjust to your requirements it's important
@@ -33,7 +33,7 @@ defmodule Riemannx.Settings do
   other 10 will be UDP.
   """
   @spec pool_size() :: non_neg_integer()
-  def pool_size, do: get_env(:riemannx, :pool_size, 10)
+  def pool_size(), do: get_env(:riemannx, :pool_size, 10)
 
   @doc """
   The strategy determines how workers are placed back in the queue once they
@@ -42,7 +42,7 @@ defmodule Riemannx.Settings do
   Default: `:fifo`
   """
   @spec strategy() :: :fifo | :lifo
-  def strategy, do: get_env(:riemannx, :strategy, :fifo)
+  def strategy(), do: get_env(:riemannx, :strategy, :fifo)
 
   @doc """
   Max overflow is an interesting setting that allows you set an upper limit on
@@ -61,7 +61,7 @@ defmodule Riemannx.Settings do
   have an overflow of 20 and so will the udp pool.
   """
   @spec max_overflow() :: non_neg_integer()
-  def max_overflow, do: get_env(:riemannx, :max_overflow, 20)
+  def max_overflow(), do: get_env(:riemannx, :max_overflow, 20)
 
   @doc """
   The type of connection to use with riemannx - the available options are:
@@ -81,7 +81,7 @@ defmodule Riemannx.Settings do
   Default: `:combined`
   """
   @spec type() :: :tcp | :udp | :tls | :combined
-  def type, do: get_env(:riemannx, :type, :combined)
+  def type(), do: get_env(:riemannx, :type, :combined)
 
   @doc """
   This is more of an internal setting using the type to determine the relative
@@ -102,23 +102,65 @@ defmodule Riemannx.Settings do
   Default: "localhost"
   """
   @spec host() :: String.t()
-  def host, do: get_env(:riemannx, :host, "localhost")
+  def host(), do: get_env(:riemannx, :host, "localhost")
 
+  ## Not really needed directly.
+  @spec tcp() :: Keyword.t()
+  defp tcp(), do: get_env(:riemannx, :tcp, tcp_default())
+  @spec tcp_default() :: Keyword.t()
+  defp tcp_default() do
+     [port: 5555,
+      retries: 5,
+      retry_interval: 5,
+      pool_size: 5,
+      max_overflow: 5]
+  end
   @doc """
   The TCP port your riemann server is listening on.
 
   Default: 5555
   """
   @spec tcp_port() :: :inet.port_number()
-  def tcp_port, do: get_env(:riemannx, :tcp_port, 5555)
+  def tcp_port(), do: tcp()[:port]
 
+  @doc """
+  The retry count is how many times riemann will attempt a connection before
+  killing the worker (TCP Only). There are 2 choices:
+
+  * A `non_neg_integer()` in seconds
+  * `:infinity` to retry until it works
+
+  The default is 5.
+  """
+  @spec retry_count() :: non_neg_integer() | :infinity
+  def retry_count(), do: tcp()[:retry_count]
+
+  @doc """
+  The retry interval is the amount of time (in seconds) to sleep before
+  attempting a reconnect (TCP Only).
+
+  Default: 5
+  """
+  @spec retry_interval() :: non_neg_integer()
+  def retry_interval(), do: tcp()[:retry_interval] * 1000
+
+  ## Not really needed directly
+  @spec udp() :: Keyword.t()
+  defp udp(), do: get_env(:riemannx, :udp, udp_default())
+  @spec udp_default() :: Keyword.t()
+  defp udp_default() do
+     [port: 5555,
+      packet_size: 16_384,
+      pool_size: 5,
+      max_overflow: 5]
+  end
   @doc """
   The UDP port your riemann server is listening on.
 
   Default: 5555
   """
   @spec udp_port() :: :inet.port_number()
-  def udp_port, do: get_env(:riemannx, :udp_port, 5555)
+  def udp_port(), do: udp()[:port]
 
   @doc """
   Your riemann server will have an upper limit on the allowable size of a UDP
@@ -131,29 +173,8 @@ defmodule Riemannx.Settings do
 
   Default: 16384
   """
-  @spec max_udp_size() :: non_neg_integer()
-  def max_udp_size, do: get_env(:riemannx, :max_udp_size, 16_384)
-
-  @doc """
-  The retry count is how many times riemann will attempt a connection before
-  killing the worker (TCP Only). There are 2 choices:
-
-  * A `non_neg_integer()` in seconds
-  * `:infinity` to retry until it works
-
-  The default is 5.
-  """
-  @spec retry_count() :: non_neg_integer() | :infinity
-  def retry_count(), do: get_env(:riemannx, :retry_count, 5)
-
-  @doc """
-  The retry interval is the amount of time (in seconds) to sleep before
-  attempting a reconnect (TCP Only).
-
-  Default: 5
-  """
-  @spec retry_interval() :: non_neg_integer()
-  def retry_interval(), do: get_env(:riemannx, :retry_interval, 5) * 1000
+  @spec packet_size() :: non_neg_integer()
+  def packet_size(), do: udp()[:packet_size]
 
   @doc """
   Retrives SSL options set for a TLS connection. For more information
