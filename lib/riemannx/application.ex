@@ -6,6 +6,7 @@ defmodule Riemannx.Application do
   def start(_type, _args) do
     conn = %Riemannx.Connection{
       host: host(),
+      
       tcp_port: tcp_port(),
       udp_port: udp_port(),
       max_udp_size: max_udp_size(),
