@@ -19,6 +19,7 @@ defmodule Riemannx.Connection do
     max_udp_size: nil,
     ssl_opts: [],
     to: nil,
+    priority: nil,
     socket: nil
   ]
 
@@ -37,6 +38,7 @@ defmodule Riemannx.Connection do
     udp_port: :inet.port_number(),
     max_udp_size: non_neg_integer(),
     ssl_opts: [:ssl.ssl_option()],
+    priority: Riemannx.Settings.priority(),
     to: pid(),
     socket: socket()
   }

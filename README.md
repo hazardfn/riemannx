@@ -9,10 +9,14 @@
 
 ## TL;DR
 
-Riemannx is a riemann client built in elixir, currently it's the only client in elixir that supports UDP. It has an experimental combined option that makes the best of both TCP and UDP - in the combined mode UDP is the favoured approach but if the message size exceeds the max udp size set TCP will be used.
+Riemannx is a riemann client built in elixir, currently it's the only client in elixir that supports UDP and TLS (as well as TCP).
+
+It has an experimental combined option that makes the best of both TCP and UDP - in the combined mode UDP is the favoured approach but if the message size exceeds the max udp size set TCP will be used.
 
 As of 2.1.0 TLS connections are supported.
-As of 2.2.0 you can now query the index.
+As of 2.2.0 You can now query the index.
+As of 2.3.0 You can specify a host in config or we will work one out for you.
+As of 2.4.0 You can set a priority for the workers.
 
 ## Contents
 
@@ -29,6 +33,7 @@ As of 2.2.0 you can now query the index.
     * [Querying the index](#querying)
 4. [Special Notes](#special)
     * [Host Injection](#host-inj)
+    * [Process Priority](#prio)
 5. [Contributions](#contribute)
 6. [Acknowledgements](#ack)
 
@@ -93,6 +98,7 @@ config :riemannx, [
   type: :combined, # A choice of :tcp, :udp, :combined or :tls
   retry_count: 5, # How many times to re-attempt a TCP connection before crashing.
   retry_interval: 1, # Interval to wait before the next TCP connection attempt.
+  priority: :normal, # Priority of workers.
   ssl_opts: [], # Used for tls, see TLS section for details.
 
   # Poolboy settings
@@ -200,6 +206,14 @@ It sounds fancier than it is but basically describes the functionality that adds
 * Let riemannx do it using `:inet.gethostname()` - we only call that once and save the result, it is not called on every event.
 
 The last 2 options are the most favourable as they will keep your code clean.
+
+### Process Priority<a name="prio"></a>
+
+In this client there is the opportunity to set a priority for your workers allowing you to place higher or less priority on the sending of your stats to riemann.
+
+The difference setting a priority makes depends heavily on the hardware and how you have set your other priorities in general, more info can be found here: http://erlang.org/doc/man/erlang.html#process_flag-2
+
+If you try to set the priority to :max riemannx will raise a RuntimeError because that is a terrible idea. It will also raise a RuntimeError if you try :foo because that is also a terrible idea.
 
 ## 5. Contributions<a name="contribute"></a>
 
