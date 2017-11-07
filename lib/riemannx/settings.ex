@@ -106,14 +106,16 @@ defmodule Riemannx.Settings do
 
   ## Not really needed directly.
   @spec tcp() :: Keyword.t()
-  defp tcp(), do: get_env(:riemannx, :tcp, tcp_default())
+  defp tcp(), do: get_env(:riemannx, :tcp, [])
+  @doc false
   @spec tcp_default() :: Keyword.t()
-  defp tcp_default() do
+  def tcp_default() do
      [port: 5555,
       retries: 5,
       retry_interval: 5,
       pool_size: 5,
-      max_overflow: 5]
+      max_overflow: 5,
+      ssl_opts: ssl_options()]
   end
   @doc """
   The TCP port your riemann server is listening on.
@@ -122,6 +124,24 @@ defmodule Riemannx.Settings do
   """
   @spec tcp_port() :: :inet.port_number()
   def tcp_port(), do: tcp()[:port]
+
+  @doc """
+  The pool size for your TCP pool.
+
+  Default: 5
+  """
+  @spec tcp_pool_size() :: non_neg_integer()
+  def tcp_pool_size(), do: tcp()[:pool_size]
+
+  @doc """
+  The overflow size of your TCP pool.
+
+  Default: 5
+  """
+  @spec tcp_overflow_size() :: non_neg_integer()
+  def tcp_overflow_size(), do: tcp()[:max_overflow]
+
+  @doc ""
 
   @doc """
   The retry count is how many times riemann will attempt a connection before
@@ -146,9 +166,11 @@ defmodule Riemannx.Settings do
 
   ## Not really needed directly
   @spec udp() :: Keyword.t()
-  defp udp(), do: get_env(:riemannx, :udp, udp_default())
+  def udp(), do: get_env(:riemannx, :udp, [])
+
   @spec udp_default() :: Keyword.t()
-  defp udp_default() do
+  @doc false
+  def udp_default() do
      [port: 5555,
       packet_size: 16_384,
       pool_size: 5,
@@ -173,8 +195,24 @@ defmodule Riemannx.Settings do
 
   Default: 16384
   """
-  @spec packet_size() :: non_neg_integer()
-  def packet_size(), do: udp()[:packet_size]
+  @spec udp_packet_size() :: non_neg_integer()
+  def udp_packet_size(), do: udp()[:packet_size]
+
+  @doc """
+  The pool size of your UDP pool.
+
+  Default: 5
+  """
+  @spec udp_pool_size() :: non_neg_integer()
+  def udp_pool_size(), do: udp()[:pool_size]
+
+  @doc """
+  The overflow size of your UDP pool.
+
+  Default: 5
+  """
+  @spec udp_overflow_size() :: non_neg_integer()
+  def udp_overflow_size(), do: udp()[:max_overflow]
 
   @doc """
   Retrives SSL options set for a TLS connection. For more information
@@ -184,7 +222,7 @@ defmodule Riemannx.Settings do
   a keyfile and a certfile.
   """
   @spec ssl_options() :: [:ssl.ssl_option()]
-  def ssl_options(), do: get_env(:riemannx, :ssl_opts, [])
+  def ssl_options(), do: tcp()[:ssl_opts]
 
   @doc """
   Riemannx can inject a host name in your events if you don't supply one before

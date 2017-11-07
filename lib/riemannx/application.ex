@@ -4,14 +4,15 @@ defmodule Riemannx.Application do
   use Application
 
   def start(_type, _args) do
+    tcp_opts = Keyword.merge(tcp_default(), tcp())
+    udp_opts = Keyword.merge(udp_default(), udp())
+    Application.put_env(:riemannx, :tcp, tcp_opts)
+    Application.put_env(:riemannx, :udp, udp_opts)
     conn = %Riemannx.Connection{
       host: host(),
-      
-      tcp_port: tcp_port(),
-      udp_port: udp_port(),
-      max_udp_size: max_udp_size(),
-      priority: priority!(),
-      ssl_opts: ssl_options()
+      tcp: tcp_opts,
+      udp: udp_opts,
+      priority: priority!()
     }
     children =
       if type() == :combined, do: combined_pool(conn), else: single_pool(conn)

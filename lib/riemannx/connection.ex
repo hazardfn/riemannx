@@ -33,9 +33,8 @@ defmodule Riemannx.Connection do
   @type socket :: :gen_udp.socket() | :gen_tcp.socket() | :ssl.sslsocket()
   @type t() :: %__MODULE__{
     host: String.t(),
-    tcp: [port: :inet.port_number()],
+    tcp: [port: :inet.port_number(), ssl_opts: [:ssl.ssl_option()]],
     udp: [port: :inet.port_number(), size: non_neg_integer()],
-    tls: [ssl_opts: [:ssl.ssl_option]],
     priority: Riemannx.Settings.priority(),
     to: pid(),
     socket: socket()
