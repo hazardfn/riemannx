@@ -5,7 +5,7 @@ defmodule RiemannxTest.Servers.UDP do
   alias Riemannx.Proto.Msg
   use GenServer
   @behaviour RiemannxTest.Server
-  
+
   # ===========================================================================
   # Callbacks
   # ===========================================================================
@@ -52,10 +52,10 @@ defmodule RiemannxTest.Servers.UDP do
 
   defp open(state) do
     port     = Riemannx.Settings.port(:udp)
-    max_size = Riemannx.Settings.max_udp_size() 
+    max_size = Riemannx.Settings.max_udp_size()
     {:ok, socket} = try_open(port, max_size)
     {:reply, :ok, %{state | socket: socket}}
-  end 
+  end
   def try_open(port, max_size) do
     {:ok, _} = :gen_udp.open(port, [:binary, active: true, recbuf: max_size])
   rescue
