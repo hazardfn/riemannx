@@ -1,61 +1,41 @@
 defmodule RiemannxTest.Servers.TLS do
-  @moduledoc false
-
+  @moduledoc """
+  A simple TLS server that forwards messages received back to the test process
+  """
   alias Riemannx.Proto.Msg
-  require Logger
   use GenServer
-
-  def start(test_pid) do
-    {:ok, server} = GenServer.start(__MODULE__, %{test_pid: test_pid, socket: nil, response: nil})
+  @behaviour RiemannxTest.Server
+  
+  # ===========================================================================
+  # Callbacks
+  # ===========================================================================
+  def start(return_pid) do
+    {:ok, server} = GenServer.start(__MODULE__, %{test_pid: return_pid, socket: nil, response: nil}, [name: __MODULE__])
     :ok = GenServer.call(server, :listen)
     :ok = GenServer.cast(server, :accept)
     {:ok, server}
   end
 
-  def set_qr_response(s, r), do: GenServer.call(s, {:qr, r})
+  def set_response(response), do: GenServer.call(__MODULE__, {:response, response})
 
-  def stop(server) do
-    GenServer.call(server, :cleanup)
-    GenServer.stop(server, :normal)
-  end
-
-  def init(state) do
-    {:ok, state}
+  def stop() do
+    GenServer.call(__MODULE__, :cleanup)
+    GenServer.stop(__MODULE__, :normal)
+    :ok
   end
 
-  defp try_listen(port) do
-    {:ok, _} = :ssl.listen(port,
-    [:binary,
-     packet: 4,
-     active: true,
-     reuseaddr: true,
-     cacertfile: "test/certs/testca/cacert.pem",
-     certfile: "test/certs/server/cert.pem",
-     keyfile: "test/certs/server/key.pem"])
-  rescue
-    e in MatchError ->
-      Logger.error("Failed to listen #{inspect e}")
-      try_listen(port)
-  end
-  def handle_call(:listen, _from, state) do
-    port = Application.get_env(:riemannx, :tcp_port, 5555)
-    {:ok, socket} = try_listen(port)
-    {:reply, :ok, %{state | socket: socket}}
-  end
-  def handle_call(:cleanup, _from, state) do
-    if state.socket, do: :ssl.close(state.socket)
-    {:reply, :ok, %{state | socket: nil}}
-  end
-  def handle_call({:qr, response}, _from, state) do
-    {:reply, :ok, %{state | response: response}}
-  end
+  # ===========================================================================
+  # GenServer Callbacks
+  # ===========================================================================
+  def init(state), do: {:ok, state}
 
-  def handle_cast(:accept, %{test_pid: _pid, socket: socket} = state) do
-    {:ok, client} = :ssl.transport_accept(socket)
-    :ok = :ssl.ssl_accept(client)
-    {:noreply, %{state | socket: client}}
-  end
+  def handle_call(:listen, _, s), do: listen(s)
+  def handle_call(:cleanup, _, s), do: cleanup(s)
+  def handle_call({:response, r}, _, s), do: {:reply, :ok, %{s | response: r}}
 
+  def handle_cast(:accept, s), do: accept(s)
+
+  
   def handle_info({:ssl, _port, msg}, %{response: nil} = state) do
     decoded = Msg.decode(msg)
     events  = Enum.map(decoded.events, fn(e) -> %{e | time: 0} end)
@@ -70,5 +50,38 @@ defmodule RiemannxTest.Servers.TLS do
   end
   def handle_info(_msg, state) do
     {:noreply, state}
+  end
+
+  # ===========================================================================
+  # Private
+  # ===========================================================================
+  defp cleanup(state) do
+    if state.socket, do: :ssl.close(state.socket)
+    {:reply, :ok, %{state | socket: nil}}
+  end
+
+  defp listen(state) do
+    port = Riemannx.Settings.port(:tls)
+    {:ok, socket} = try_listen(port)
+    {:reply, :ok, %{state | socket: socket}}
+  end 
+  defp try_listen(port) do
+    {:ok, _} = :ssl.listen(port,
+    [:binary,
+     packet: 4,
+     active: true,
+     reuseaddr: true,
+     cacertfile: "test/certs/testca/cacert.pem",
+     certfile: "test/certs/server/cert.pem",
+     keyfile: "test/certs/server/key.pem"])
+  rescue
+    MatchError ->
+      try_listen(port)
+  end
+
+  defp accept(state) do
+    {:ok, client} = :ssl.transport_accept(state.socket)
+    :ok = :ssl.ssl_accept(client)
+    {:noreply, %{state | socket: client}}
   end
 end

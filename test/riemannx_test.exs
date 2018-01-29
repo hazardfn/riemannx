@@ -1,6 +1,8 @@
 defmodule RiemannxTest do
   use ExUnit.Case, async: false
   alias Riemannx.Errors.InvalidMetricError
+  alias Riemannx.Settings
+  alias RiemannxTest.Utils
   alias Riemannx.Proto.Event
   alias Riemannx.Proto.Msg
 
@@ -32,14 +34,14 @@ defmodule RiemannxTest do
   end
 
   test "Assigning max priority rasies a runtime error" do
-    Application.put_env(:riemannx, :priority, :max)
-    assert_raise(RuntimeError, fn() -> Riemannx.Settings.priority!() end)
-    Application.put_env(:riemannx, :priority, :normal)
+    Utils.update_setting(:tcp, :priority, :max)
+    assert_raise(RuntimeError, fn() -> Settings.priority!(:tcp) end)
+    Utils.update_setting(:tcp, :priority, :normal)
   end
 
   test "Assigning a random priority raises a runtime error" do
-    Application.put_env(:riemannx, :priority, :random)
-    assert_raise(RuntimeError, fn() -> Riemannx.Settings.priority!() end)
-    Application.put_env(:riemannx, :priority, :normal)
+    Utils.update_setting(:tcp, :priority, :random)
+    assert_raise(RuntimeError, fn() -> Settings.priority!(:tcp) end)
+    Utils.update_setting(:tcp, :priority, :normal)
   end
 end

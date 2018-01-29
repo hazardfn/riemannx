@@ -2,14 +2,14 @@ defmodule RiemannxTest.TCP do
   use ExUnit.Case, async: false
   use PropCheck
   alias Riemannx.Proto.Msg
+  alias RiemannxTest.Utils
   alias Riemannx.Connections.TCP, as: Client
-  alias RiemannxTest.Servers.TCP, as: Server
+  alias RiemannxTest.Server, as: Server
   alias RiemannxTest.Property.RiemannXPropTest, as: Prop
 
   setup_all do
     Application.load(:riemannx)
     Application.put_env(:riemannx, :type, :tcp)
-    Application.put_env(:riemannx, :max_udp_size, 16_384)
     on_exit(fn() ->
       Application.unload(:riemannx)
     end)
@@ -17,12 +17,12 @@ defmodule RiemannxTest.TCP do
   end
 
   setup do
-    {:ok, server} = Server.start(self())
+    Utils.update_setting(:tcp, :port, 5555)
+    {:ok, server} = Server.start(:tcp, self())
     Application.ensure_all_started(:riemannx)
-    Application.put_env(:riemannx, :max_udp_size, 16_384)
 
     on_exit(fn() ->
-      Server.stop(server)
+      Server.stop(:tcp)
       Application.stop(:riemannx)
     end)
 
@@ -69,11 +69,12 @@ defmodule RiemannxTest.TCP do
   end
 
   test "Test connection retry raises eventually" do
-    Application.put_env(:riemannx, :retry_count, 1)
-    Application.put_env(:riemannx, :retry_interval, 1)
+    Utils.update_setting(:tcp, :retry_count, 1)
+    Utils.update_setting(:tcp, :retry_interval, 1)
+    Utils.update_setting(:tcp, :port, 5554)
     conn = %Riemannx.Connection{
-      host: "localhost",
-      tcp_port: 5554
+      host: to_charlist("localhost"),
+      port: 5554
     }
     assert_raise RuntimeError, fn() ->
       Client.handle_cast(:init, conn)
@@ -81,9 +82,10 @@ defmodule RiemannxTest.TCP do
   end
 
   test "Send failure is captured and returned on sync send" do
+    Utils.update_setting(:tcp, :port, 5554)
     conn = %Riemannx.Connection{
       host: to_charlist("localhost"),
-      tcp_port: 5554,
+      port: 5554,
       #:erlang.list_to_port is better but only in 20.
       socket: RiemannxTest.Utils.term_to_port("#Port<0.9999>")
     }
@@ -91,16 +93,17 @@ defmodule RiemannxTest.TCP do
   end
 
   test "Send failure is captured and returned on query" do
+    Utils.update_setting(:tcp, :port, 5554)
     conn = %Riemannx.Connection{
       host: to_charlist("localhost"),
-      tcp_port: 5554,
+      port: 5554,
       #:erlang.list_to_port is better but only in 20.
       socket: RiemannxTest.Utils.term_to_port("#Port<0.9999>")
     }
     refute :ok == Client.handle_call({:send_msg, <<>>, self()}, self(), conn)
   end
 
-  test "Can query events", context do
+  test "Can query events" do
     event = [
       service: "riemannx-elixir",
       metric: 1,
@@ -111,12 +114,12 @@ defmodule RiemannxTest.TCP do
     msg   = Msg.new(ok: true, events: event)
     msg   = Msg.encode(msg)
 
-    Server.set_qr_response(context[:server], msg)
+    Server.set_response(:tcp, msg)
     events = Riemannx.query("test")
     assert events == Riemannx.Proto.Event.deconstruct(event)
   end
 
-  test "Can query events w/ charlist", context do
+  test "Can query events w/ charlist" do
     event = [
       service: "riemannx-elixir",
       metric: 1,
@@ -127,12 +130,12 @@ defmodule RiemannxTest.TCP do
     msg   = Msg.new(ok: true, events: event)
     msg   = Msg.encode(msg)
 
-    Server.set_qr_response(context[:server], msg)
+    Server.set_response(:tcp, msg)
     events = Riemannx.query('test')
     assert events == Riemannx.Proto.Event.deconstruct(event)
   end
 
-  test "Errors are handled in query", context do
+  test "Errors are handled in query" do
     event = [
       service: "riemannx-elixir",
       metric: 1,
@@ -143,15 +146,15 @@ defmodule RiemannxTest.TCP do
     msg   = Msg.new(ok: false, events: event)
     msg   = Msg.encode(msg)
 
-    Server.set_qr_response(context[:server], msg)
+    Server.set_response(:tcp, msg)
     events = Riemannx.query("test")
     assert match?([error: _e, message: _msg], events)
   end
 
-  test "Empty queries are handled", context do
+  test "Empty queries are handled" do
     msg = Msg.encode(Msg.new(ok: true))
 
-    Server.set_qr_response(context[:server], msg)
+    Server.set_response(:tcp, msg)
     events = Riemannx.query("test")
     assert match?([], events)
   end

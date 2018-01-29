@@ -3,24 +3,27 @@ defmodule RiemannxTest.Combined do
   use PropCheck
   import Riemannx.Settings
   alias Riemannx.Proto.Msg
+  alias RiemannxTest.Utils
+  alias RiemannxTest.Server
   alias RiemannxTest.Property.RiemannXPropTest, as: Prop
 
   setup_all do
     Application.load(:riemannx)
     Application.put_env(:riemannx, :type, :combined)
-    Application.put_env(:riemannx, :max_udp_size, 16_384)
     :ok
   end
 
   setup do
-    {:ok, tcp_server} = RiemannxTest.Servers.TCP.start(self())
-    {:ok, udp_server} = RiemannxTest.Servers.UDP.start(self())
+    Utils.update_setting(:udp, :max_size, 16_384)
+    Utils.update_setting(:udp, :port, 5555)
+    Utils.update_setting(:tcp, :port, 5555)
+    {:ok, tcp_server} = Server.start(:tcp, self())
+    {:ok, udp_server} = Server.start(:udp, self())
     Application.ensure_all_started(:riemannx)
-    Application.put_env(:riemannx, :max_udp_size, 16_384)
 
     on_exit(fn() ->
-      RiemannxTest.Servers.TCP.stop(tcp_server)
-      RiemannxTest.Servers.UDP.stop(udp_server)
+      Server.stop(:tcp)
+      Server.stop(:udp)
       Application.stop(:riemannx)
     end)
 
@@ -90,13 +93,12 @@ defmodule RiemannxTest.Combined do
         state: "ok"
       ]
     ]
-    Application.put_env(:riemannx, :max_udp_size, 1)
+    Utils.update_setting(:udp, :max_size, 1)
     Riemannx.send_async(events)
     assert_events_received(events, :tcp)
-    Application.put_env(:riemannx, :max_udp_size, 16_384)
   end
 
-  test "Queries are forwarded via TCP", context do
+  test "Queries are forwarded via TCP" do
     event = [
       service: "riemannx-elixir",
       metric: 1,
@@ -107,7 +109,7 @@ defmodule RiemannxTest.Combined do
     msg   = Msg.new(ok: true, events: event)
     msg   = Msg.encode(msg)
 
-    RiemannxTest.Servers.TCP.set_qr_response(context[:tcp_server], msg)
+    Server.set_response(:tcp, msg)
     events = Riemannx.query("test")
     assert events == Riemannx.Proto.Event.deconstruct(event)
   end
