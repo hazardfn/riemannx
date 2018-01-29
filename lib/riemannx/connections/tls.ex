@@ -27,46 +27,32 @@ defmodule Riemannx.Connections.TLS do
   # ===========================================================================
   # API
   # ===========================================================================
-  def get_worker(_e, p), do: :poolboy.checkout(p, true, :infinity)
+  def get_worker(_e), do: :poolboy.checkout(pool_name(:tls), true, :infinity)
   def send(w, e), do: GenServer.call(w, {:send_msg, e})
   def send_async(w, e), do: GenServer.cast(w, {:send_msg, e})
   def query(w, m, t), do: GenServer.call(w, {:send_msg, m, t})
-  def release(w, _e, p), do: :poolboy.checkin(p, w)
-
-  # ===========================================================================
-  # Private
-  # ===========================================================================
-  defp try_ssl_connect(_state, 0), do: raise "Unable to connect!"
-  defp try_ssl_connect(state, n) do
-    opts = [:binary, nodelay: true, packet: 4, active: true, reuseaddr: true]
-    {:ok, ssl_socket} =
-      :ssl.connect(state.host, state.tcp_port, state.ssl_opts ++ opts)
-    ssl_socket
-  rescue
-    e in MatchError ->
-      Logger.error("[#{__MODULE__}] Unable to connect: #{inspect e}")
-      :timer.sleep(retry_interval())
-      try_ssl_connect(state, n - 1)
-  end
+  def release(w, _e), do: :poolboy.checkin(pool_name(:tls), w)
 
   # ===========================================================================
   # GenServer Callbacks
   # ===========================================================================
-  @spec start_link(Connection.t()) :: {:ok, pid()}
-  def start_link(conn), do: GenServer.start_link(__MODULE__, conn)
+  @spec start_link([]) :: {:ok, pid()}
+  def start_link([]), do: GenServer.start_link(__MODULE__, [])
 
-  @spec init(Connection.t()) :: {:ok, Connection.t()}
-  def init(conn) do
+  @spec init([]) :: {:ok, Connection.t()}
+  def init([]) do
     Process.flag(:trap_exit, true)
-    Process.flag(:priority, conn.priority)
+    Process.flag(:priority, priority!(:tls))
     GenServer.cast(self(), :init)
-    {:ok, conn}
+    {:ok, %Connection{}}
   end
 
-  def handle_cast(:init, state) do
-    host        = to_charlist(state.host)
-    retry_count = retry_count()
-    state       = %{state | host: host}
+  def handle_cast(:init, _state) do
+    conn        = %Connection{host: to_charlist(host()),
+                              port: port(:tls),
+                              options: options(:tls)}
+    retry_count = retry_count(:tls)
+    state       = conn
     ssl_socket  = try_ssl_connect(state, retry_count)
     {:noreply, %{state | socket: ssl_socket}}
   end
@@ -118,5 +104,20 @@ defmodule Riemannx.Connections.TLS do
   def terminate(_reason, state) do
     if state.socket, do: :ssl.close(state.socket)
     :ok
+  end
+
+  # ===========================================================================
+  # Private
+  # ===========================================================================
+  defp try_ssl_connect(_state, 0), do: raise "Unable to connect!"
+  defp try_ssl_connect(state, n) do
+    {:ok, ssl_socket} =
+      :ssl.connect(state.host, state.port, state.options)
+    ssl_socket
+  rescue
+    e in MatchError ->
+      Logger.error("[#{__MODULE__}] Unable to connect: #{inspect e}")
+      :timer.sleep(retry_interval(:tls))
+      try_ssl_connect(state, n - 1)
   end
 end

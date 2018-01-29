@@ -27,11 +27,11 @@ defmodule Riemannx.Connections.TCP do
   # ===========================================================================
   # API
   # ===========================================================================
-  def get_worker(_e, p), do: :poolboy.checkout(p, true, :infinity)
+  def get_worker(_e), do: :poolboy.checkout(pool_name(:tcp), true, :infinity)
   def send(w, e), do: GenServer.call(w, {:send_msg, e})
   def send_async(w, e), do: GenServer.cast(w, {:send_msg, e})
   def query(w, m, t), do: GenServer.call(w, {:send_msg, m, t})
-  def release(w, _e, p), do: :poolboy.checkin(p, w)
+  def release(w, _e), do: :poolboy.checkin(pool_name(:tcp), w)
 
   # ===========================================================================
   # Private
@@ -40,34 +40,36 @@ defmodule Riemannx.Connections.TCP do
   defp try_tcp_connect(state, n) do
     {:ok, tcp_socket} =
       :gen_tcp.connect(state.host,
-                       state.tcp_port,
-                       [:binary, nodelay: true, packet: 4, active: true, reuseaddr: true])
+                       state.port,
+                       state.options)
     tcp_socket
   rescue
     e in MatchError ->
       Logger.error("[#{__MODULE__}] Unable to connect: #{inspect e}")
-      :timer.sleep(retry_interval())
+      :timer.sleep(retry_interval(:tcp))
       try_tcp_connect(state, n - 1)
   end
 
   # ===========================================================================
   # GenServer Callbacks
   # ===========================================================================
-  @spec start_link(Connection.t()) :: {:ok, pid()}
-  def start_link(conn), do: GenServer.start_link(__MODULE__, conn)
+  @spec start_link([]) :: {:ok, pid()}
+  def start_link([]), do: GenServer.start_link(__MODULE__, [])
 
-  @spec init(Connection.t()) :: {:ok, Connection.t()}
-  def init(conn) do
+  @spec init([]) :: {:ok, Connection.t()}
+  def init([]) do
     Process.flag(:trap_exit, true)
-    Process.flag(:priority, conn.priority)
+    Process.flag(:priority, priority!(:tcp))
     GenServer.cast(self(), :init)
-    {:ok, conn}
+    {:ok, %Connection{}}
   end
 
-  def handle_cast(:init, state) do
-    host        = to_charlist(state.host)
-    retry_count = retry_count()
-    state       = %{state | host: host}
+  def handle_cast(:init, _state) do
+    conn        = %Connection{host: to_charlist(host()),
+                              port: port(:tcp),
+                              options: options(:tcp)}
+    retry_count = retry_count(:tcp)
+    state       = conn
     tcp_socket  = try_tcp_connect(state, retry_count)
     {:noreply, %{state | socket: tcp_socket}}
   end

@@ -17,4 +17,10 @@ defmodule RiemannxTest.Utils do
              vsn :: size(8)>>
     :erlang.binary_to_term(bin)
   end
+
+  def update_setting(type, opt, value) do
+    opts   = Application.get_env(:riemannx, type, [])
+    new_kw = Keyword.put(opts, opt, value)
+    Application.put_env(:riemannx, type, new_kw)
+  end
 end

@@ -1,32 +1,28 @@
 defmodule RiemannxTest.UDP do
+  @moduledoc """
+  Tests the UDP client.
+  """
   use ExUnit.Case, async: false
   use PropCheck
+  require IEx
   import Riemannx.Settings
   alias Riemannx.Proto.Msg
-  alias Riemannx.Connections.UDP, as: Client
-  alias RiemannxTest.Servers.UDP, as: Server
+  alias RiemannxTest.Server
+  alias RiemannxTest.Utils
   alias RiemannxTest.Property.RiemannXPropTest, as: Prop
 
   setup_all do
-    Application.load(:riemannx)
     Application.put_env(:riemannx, :type, :udp)
-    Application.put_env(:riemannx, :max_udp_size, 16_384)
-    on_exit(fn() ->
-      Application.unload(:riemannx)
-    end)
-    :ok
   end
 
   setup do
-    {:ok, server} = Server.start(self())
+    Utils.update_setting(:udp, :max_size, 16_384)
+    {:ok, server} = Server.start(:udp, self())
     Application.ensure_all_started(:riemannx)
-    Application.put_env(:riemannx, :max_udp_size, 16_384)
-
     on_exit(fn() ->
-      Server.stop(server)
+      Server.stop(:udp)
       Application.stop(:riemannx)
     end)
-
     [server: server]
   end
 
@@ -76,10 +72,9 @@ defmodule RiemannxTest.UDP do
       attributes: [a: 1],
       description: "test"
     ]
-    Application.put_env(:riemannx, :max_udp_size, 1)
+    Utils.update_setting(:udp, :max_size, 1)
     Riemannx.send_async(event)
     assert refute_events_received()
-    Application.put_env(:riemannx, :max_udp_size, 16_384)
   end
 
   test "send/1 ignores UDP requests over the limit" do
@@ -89,9 +84,8 @@ defmodule RiemannxTest.UDP do
       attributes: [a: 1],
       description: "test"
     ]
-    Application.put_env(:riemannx, :max_udp_size, 1)
+    Utils.update_setting(:udp, :max_size, 1)
     refute :ok == Riemannx.send(event)
-    Application.put_env(:riemannx, :max_udp_size, 16_384)
   end
 
   test "sync message to a dead server causes an error" do
@@ -101,7 +95,7 @@ defmodule RiemannxTest.UDP do
       attributes: [a: 1],
       description: "test"
     ]
-    :poolboy.transaction(:riemannx_pool, fn(pid) ->
+    :poolboy.transaction(pool_name(:udp), fn(pid) ->
       socket = :sys.get_state(pid).socket
       :gen_udp.close(socket)
     end)
@@ -110,14 +104,14 @@ defmodule RiemannxTest.UDP do
   end
 
   test "Send failure is captured and returned on sync send" do
+    Utils.update_setting(:udp, :max_size, 100)
     conn = %Riemannx.Connection{
       host: to_charlist("localhost"),
-      udp_port: 5554,
-      max_udp_size: 100,
+      port: 5554,
       #:erlang.list_to_port is better but only in 20.
-      socket: RiemannxTest.Utils.term_to_port("#Port<0.9000>")
+      socket: Utils.term_to_port("#Port<0.9000>")
     }
-    refute :ok == Client.handle_call({:send_msg, <<>>}, self(), conn)
+    refute :ok == module().handle_call({:send_msg, <<>>}, self(), conn)
   end
 
   test "Can't query events" do
