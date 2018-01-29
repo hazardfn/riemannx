@@ -5,7 +5,7 @@ defmodule RiemannxTest.Servers.TLS do
   alias Riemannx.Proto.Msg
   use GenServer
   @behaviour RiemannxTest.Server
-  
+
   # ===========================================================================
   # Callbacks
   # ===========================================================================
@@ -35,7 +35,6 @@ defmodule RiemannxTest.Servers.TLS do
 
   def handle_cast(:accept, s), do: accept(s)
 
-  
   def handle_info({:ssl, _port, msg}, %{response: nil} = state) do
     decoded = Msg.decode(msg)
     events  = Enum.map(decoded.events, fn(e) -> %{e | time: 0} end)
@@ -64,7 +63,7 @@ defmodule RiemannxTest.Servers.TLS do
     port = Riemannx.Settings.port(:tls)
     {:ok, socket} = try_listen(port)
     {:reply, :ok, %{state | socket: socket}}
-  end 
+  end
   defp try_listen(port) do
     {:ok, _} = :ssl.listen(port,
     [:binary,
