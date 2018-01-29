@@ -52,7 +52,7 @@ defmodule Riemannx.Connection do
   @doc """
   Fetches a relevant worker based on your connection type.
   """
-  @spec get_worker(atom()) :: pid() | error()
+  @spec get_worker(encoded_event()) :: pid() | error()
   def get_worker(e), do: module().get_worker(e)
 
   @doc """
