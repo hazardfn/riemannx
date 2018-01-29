@@ -30,11 +30,11 @@ defmodule Riemannx.Connection do
   @type retry_count :: non_neg_integer() | :infinity
   @type socket :: :gen_udp.socket() | :gen_tcp.socket() | :ssl.sslsocket()
   @type t() :: %__MODULE__{
-    host: String.t(),
-    port: :inet.port_number(),
-    options: list(),
-    to: pid(),
-    socket: socket()
+    host: String.t() | nil,
+    port: :inet.port_number() | nil,
+    options: list() | nil,
+    to: pid() | nil,
+    socket: socket() | nil
   }
 
   # ===========================================================================
