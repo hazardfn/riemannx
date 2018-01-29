@@ -13,54 +13,55 @@ defmodule Riemannx.Connections.UDP do
   # ===========================================================================
   # API
   # ===========================================================================
-  def get_worker(e, p) do
+  def get_worker(e) do
     if byte_size(e) > max_udp_size() do
       [error: "Transmission too large!", message: e]
     else
-      :poolboy.checkout(p, true, :infinity)
+      :poolboy.checkout(pool_name(:udp), true, :infinity)
     end
   end
   def send(w, e), do: GenServer.call(w, {:send_msg, e})
   def send_async(w, e), do: GenServer.cast(w, {:send_msg, e})
   def query(_, m, _), do: [error: "Querying via UDP is not supported", message: m]
-  def release(w, _e, p), do: :poolboy.checkin(p, w)
+  def release(w, _e), do: :poolboy.checkin(pool_name(:udp), w)
 
   # ===========================================================================
   # Private
   # ===========================================================================
   defp udp_connect(state) do
-    {:ok, udp_socket} = :gen_udp.open(0, [:binary, {:sndbuf, state.max_udp_size}])
+    {:ok, udp_socket} = :gen_udp.open(0, state.options)
     udp_socket
   end
 
   # ===========================================================================
   # GenServer Callbacks
   # ===========================================================================
-  @spec start_link(Connection.t()) :: {:ok, pid()}
-  def start_link(conn), do: GenServer.start_link(__MODULE__, conn)
+  @spec start_link([]) :: {:ok, pid()}
+  def start_link([]), do: GenServer.start_link(__MODULE__, [])
 
-  @spec init(Connection.t()) :: {:ok, Connection.t()}
-  def init(conn) do
+  @spec init([]) :: {:ok, Connection.t()}
+  def init([]) do
     Process.flag(:trap_exit, true)
-    Process.flag(:priority, conn.priority)
+    Process.flag(:priority, priority!(:udp))
     GenServer.cast(self(), :init)
-    {:ok, conn}
+    {:ok, %Connection{}}
   end
 
-  def handle_cast(:init, state) do
-    host        = to_charlist(state.host)
-    state       = %{state | host: host}
-    udp_socket  = udp_connect(state)
-    {:noreply, %{state | socket: udp_socket}}
+  def handle_cast(:init, _state) do
+    conn        = %Connection{host: to_charlist(host()),
+                              port: port(:udp),
+                              options: options(:udp)}
+    udp_socket  = udp_connect(conn)
+    {:noreply, %{conn | socket: udp_socket}}
   end
   def handle_cast({:send_msg, msg}, state) do
-    :ok = :gen_udp.send(state.socket, state.host, state.udp_port, msg)
+    :ok = :gen_udp.send(state.socket, state.host, state.port, msg)
     Connection.release(self(), msg)
     {:noreply, state}
   end
 
   def handle_call({:send_msg, msg}, _from, state) do
-    reply = case :gen_udp.send(state.socket, state.host, state.udp_port, msg) do
+    reply = case :gen_udp.send(state.socket, state.host, state.port, msg) do
       :ok ->
         :ok
       {:error, code} ->

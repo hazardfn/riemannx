@@ -13,10 +13,11 @@ Riemannx is a riemann client built in elixir, currently it's the only client in 
 
 It has an experimental combined option that makes the best of both TCP and UDP - in the combined mode UDP is the favoured approach but if the message size exceeds the max udp size set TCP will be used.
 
-As of 2.1.0 TLS connections are supported.
-As of 2.2.0 You can now query the index.
-As of 2.3.0 You can specify a host in config or we will work one out for you.
-As of 2.4.0 You can set a priority for the workers.
+* As of 2.1.0 TLS connections are supported.
+* As of 2.2.0 You can now query the index.
+* As of 2.3.0 You can specify a host in config or we will work one out for you.
+* As of 2.4.0 You can set a priority for the workers.
+* As of 3.0.0 configuration entries are separate for the different connection types (see: [Migrating to 3.0+](#migrate-3.0))
 
 ## Contents
 
@@ -27,6 +28,7 @@ As of 2.4.0 You can set a priority for the workers.
 2. [Installation](#installation)
 3. [Examples](#examples)
     * [Config](#config)
+    * [Legacy Config](#legacy-config)
     * [Synchronous](#sync)
     * [Asynchronous](#async)
     * [TLS](#tls)
@@ -34,6 +36,7 @@ As of 2.4.0 You can set a priority for the workers.
 4. [Special Notes](#special)
     * [Host Injection](#host-inj)
     * [Process Priority](#prio)
+    * [Migrating to 3.0+](#migrate-3.0)
 5. [Contributions](#contribute)
 6. [Acknowledgements](#ack)
 
@@ -71,7 +74,7 @@ Installation happens just like any other elixir library, add it to your mix file
 
 ```elixir
 def deps do
-  [{:riemannx, "~> 2.3"}]
+  [{:riemannx, "~> 3.0.0"}]
 end
 ```
 
@@ -86,6 +89,49 @@ applications: [:logger, :riemannx]
 To use riemannx all you need to do is fill out some config entries - after that everything just happens automagically (save for the actual sending of course). Below is a comprehensive list of available options:
 
 ### Config<a name="config"></a>
+
+> The below example is relevant only as of 3.0. For an example relating to previous versions see: [Legacy Config](#legacy-config)
+
+```elixir
+config :riemannx, [
+  host: "localhost", # The riemann server
+  event_host: "my_app", # You can override the host name sent to riemann if you want (see: Host Injection)
+  type: :combined, # The type of connection you want to run (:tcp, :udp, :tls or :combined)
+  tcp: [
+    port: 5555,
+    retry_count: 5, # How many times to re-attempt a TCP connection
+    retry_interval: 1000, # Interval to wait before the next TCP connection attempt (milliseconds).
+    priority: :high, # Priority to give TCP workers.
+    options: [], # Specify additional options to be passed to gen_tcp (NOTE: [:binary, nodelay: true, packet: 4, active: true] will be added to whatever you type here as they are deemed essential)
+    pool_size: 5, # How many TCP workers should be in the pool.
+    max_overflow: 5, # Under heavy load how many more TCP workers can be created to meet demand?
+    strategy: :fifo # The poolboy strategy for retrieving workers from the queue
+  ],
+  udp: [
+    port: 5555,
+    priority: :high,
+    options: [], # Specify additional options to be passed to gen_udp (NOTE: [:binary, sndbuf: max_udp_size()] will be added to whatever you type here as they are deemed essential)
+    max_size: 16_384, # Maximum accepted packet size (this is configured in your Riemann server)
+    pool_size: 5,
+    max_overflow: 5,
+    strategy: :fifo
+  ],
+  tls: [
+    port: 5554,
+    retry_count: 5, # How many times to re-attempt a TLS connection
+    retry_interval: 1000, # Interval to wait before the next TLS connection attempt (milliseconds).
+    priority: :high,
+    options: [], # Specify additional options to be passed to :ssl (NOTE: [:binary, nodelay: true, packet: 4, active: true] will be added to whatever you type here as they are deemed essential)
+    pool_size: 5,
+    max_overflow: 5,
+    strategy: :fifo
+  ]
+]
+```
+
+### Legacy Config<a name="legacy-config"></a>
+
+> As is probably evident this configuration layout is sub-optimal, it is recommended you update to gain more control over pool sizes etc.
 
 ```elixir
 config :riemannx, [
@@ -160,14 +206,23 @@ If you choose to use TLS you will be using a purely TCP setup, combined is not s
 ```elixir
   config :riemannx, [
     host: "127.0.0.1",
-    tcp_port: 5555,
     type: :tls,
-    # SSL Opts are passed to the underlying ssl erlang interface
-    # See available options here: http://erlang.org/doc/man/ssl.html
-    ssl_opts: [
-      keyfile: "path/to/key",
-      certfile: "path/to/cert",
-      verify_peer: true
+    tls: [
+      port: 5554,
+      retry_count: 5, # How many times to re-attempt a TLS connection
+      retry_interval: 1000, # Interval to wait before the next TLS connection attempt (milliseconds).
+      priority: :high,
+      # SSL Opts are passed to the underlying ssl erlang interface
+      # See available options here: http://erlang.org/doc/man/ssl.html
+      # (NOTE: [:binary, nodelay: true, packet: 4, active: true] will be added to whatever you type here as they are deemed essential)
+      options: [
+        keyfile: "path/to/key",
+        certfile: "path/to/cert",
+        verify_peer: true
+      ],
+      pool_size: 5,
+      max_overflow: 5,
+      strategy: :fifo
     ]
   ]
 ```
@@ -214,6 +269,14 @@ In this client there is the opportunity to set a priority for your workers allow
 The difference setting a priority makes depends heavily on the hardware and how you have set your other priorities in general, more info can be found here: http://erlang.org/doc/man/erlang.html#process_flag-2
 
 If you try to set the priority to :max riemannx will raise a RuntimeError because that is a terrible idea. It will also raise a RuntimeError if you try :foo because that is also a terrible idea.
+
+### Migrating to 3.0+<a name="migrate-3.0"></a>
+
+Migrating to 3.0 is essentially just a case of changing your config layout - all of the same options exist except now you have more control over your workers at the type level, this is especially valuable when using the combined setup as you could, say, have a smaller pool of TCP workers and a larger UDP worker pool instead of as it was before (2x whatever pool_size you gave).
+
+You can see this new layout here: [Config](#config)
+
+> If anything doesn't make sense here feel free to open an issue so we can expand the README to fix the unclarity.
 
 ## 5. Contributions<a name="contribute"></a>
 
