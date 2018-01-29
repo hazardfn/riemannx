@@ -32,22 +32,18 @@ defmodule Riemannx.Connections.Combined do
   # ===========================================================================
   # API
   # ===========================================================================
-  def get_worker(e, _p), do: conn_module(e).get_worker(e, pool(e))
+  def get_worker(e), do: conn_module(e).get_worker(e)
   def send(w, e), do: conn_module(e).send(w, e)
   def send_async(w, e), do: conn_module(e).send_async(w, e)
   def query(_w, m, t), do: TCP.query(query_worker(), m, t)
-  def release(w, e, _p), do: conn_module(e).release(w, e, pool(e))
+  def release(w, e), do: conn_module(e).release(w, e)
 
   # ===========================================================================
   # Private
   # ===========================================================================
-  defp query_worker(), do: TCP.get_worker(nil, :riemannx_tcp)
+  defp query_worker(), do: TCP.get_worker(nil)
 
   defp conn_module(event) do
     if byte_size(event) > max_udp_size(), do: TCP, else: UDP
-  end
-
-  defp pool(event) do
-    if conn_module(event) == TCP, do: :riemannx_tcp, else: :riemannx_udp
   end
 end

@@ -14,12 +14,9 @@ defmodule Riemannx.Connection do
   # ===========================================================================
   defstruct [
     host: nil,
-    tcp_port: nil,
-    udp_port: nil,
-    max_udp_size: nil,
-    ssl_opts: [],
+    port: nil,
+    options: [],
     to: nil,
-    priority: nil,
     socket: nil
   ]
 
@@ -34,11 +31,8 @@ defmodule Riemannx.Connection do
   @type socket :: :gen_udp.socket() | :gen_tcp.socket() | :ssl.sslsocket()
   @type t() :: %__MODULE__{
     host: String.t(),
-    tcp_port: :inet.port_number(),
-    udp_port: :inet.port_number(),
-    max_udp_size: non_neg_integer(),
-    ssl_opts: [:ssl.ssl_option()],
-    priority: Riemannx.Settings.priority(),
+    port: :inet.port_number(),
+    options: list(),
     to: pid(),
     socket: socket()
   }
@@ -46,11 +40,11 @@ defmodule Riemannx.Connection do
   # ===========================================================================
   # Callbacks
   # ===========================================================================
-  @callback get_worker(e :: encoded_event(), p :: atom()) :: pid() | error()
+  @callback get_worker(e :: encoded_event()) :: pid() | error()
   @callback send(w :: pid(), e :: encoded_event()) :: :ok | error()
   @callback send_async(w :: pid(), e :: encoded_event()) :: :ok
   @callback query(w :: pid() | nil, m :: query(), t :: pid()) :: :ok | error()
-  @callback release(w :: pid(), e :: encoded_event(), p :: atom()) :: :ok
+  @callback release(w :: pid(), e :: encoded_event()) :: :ok
 
   # ===========================================================================
   # API
@@ -58,8 +52,8 @@ defmodule Riemannx.Connection do
   @doc """
   Fetches a relevant worker based on your connection type.
   """
-  @spec get_worker(encoded_event(), atom()) :: pid() | error()
-  def get_worker(e, p \\ :riemannx_pool), do: module().get_worker(e, p)
+  @spec get_worker(atom()) :: pid() | error()
+  def get_worker(e), do: module().get_worker(e)
 
   @doc """
   Tells the given worker to synchronously process an event.
@@ -83,8 +77,8 @@ defmodule Riemannx.Connection do
   @doc """
   Tells the given worker to release itself back into the wild.
   """
-  @spec release(pid(), encoded_event(), atom()) :: :ok
-  def release(pid, e, p \\ :riemannx_pool), do: module().release(pid, e, p)
+  @spec release(pid(), encoded_event()) :: :ok
+  def release(pid, e), do: module().release(pid, e)
 
   @doc """
   An acceptable query response.
