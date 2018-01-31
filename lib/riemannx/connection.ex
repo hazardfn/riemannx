@@ -83,10 +83,10 @@ defmodule Riemannx.Connection do
   @doc """
   An acceptable query response.
   """
-  def query_ok(), do: Msg.encode(Msg.new(ok: true))
+  def query_ok, do: Msg.encode(Msg.new(ok: true))
 
   @doc """
   A failed query.
   """
-  def query_failed(), do: Msg.encode(Msg.new(ok: false))
+  def query_failed, do: Msg.encode(Msg.new(ok: false))
 end

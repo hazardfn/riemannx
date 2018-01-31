@@ -1,6 +1,7 @@
 defmodule RiemannxTest do
   use ExUnit.Case, async: false
   alias Riemannx.Errors.InvalidMetricError
+  alias Riemannx.Connection
   alias Riemannx.Settings
   alias RiemannxTest.Utils
   alias Riemannx.Proto.Event
@@ -13,8 +14,8 @@ defmodule RiemannxTest do
   end
 
   test "Query return values" do
-    assert Msg.decode(Riemannx.Connection.query_ok()) == Msg.new(ok: true)
-    assert Msg.decode(Riemannx.Connection.query_failed()) == Msg.new(ok: false)
+    assert Msg.decode(Connection.query_ok()) == Msg.new(ok: true)
+    assert Msg.decode(Connection.query_failed()) == Msg.new(ok: false)
   end
 
   test "Setting a host name returns an event with that host" do

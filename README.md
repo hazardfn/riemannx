@@ -37,6 +37,8 @@ It has an experimental combined option that makes the best of both TCP and UDP -
     * [Host Injection](#host-inj)
     * [Process Priority](#prio)
     * [Migrating to 3.0+](#migrate-3.0)
+    * [Settings Backend](#settings-backend)
+    * [Metrics Backend](#metrics-backend)
 5. [Contributions](#contribute)
 6. [Acknowledgements](#ack)
 
@@ -97,6 +99,8 @@ config :riemannx, [
   host: "localhost", # The riemann server
   event_host: "my_app", # You can override the host name sent to riemann if you want (see: Host Injection)
   type: :combined, # The type of connection you want to run (:tcp, :udp, :tls or :combined)
+  settings_module: Riemannx.Settings.Default # The backend used for reading settings back
+  metrics_module: Riemannx.Metrics.Default # The backend used for sending metrics
   tcp: [
     port: 5555,
     retry_count: 5, # How many times to re-attempt a TCP connection
@@ -131,7 +135,7 @@ config :riemannx, [
 
 ### Legacy Config<a name="legacy-config"></a>
 
-> As is probably evident this configuration layout is sub-optimal, it is recommended you update to gain more control over pool sizes etc.
+> The below example is only relevant to pre 3.0. As is probably evident this configuration layout is sub-optimal, it is recommended you update to gain more control over pool sizes etc.
 
 ```elixir
 config :riemannx, [
@@ -277,6 +281,21 @@ Migrating to 3.0 is essentially just a case of changing your config layout - all
 You can see this new layout here: [Config](#config)
 
 > If anything doesn't make sense here feel free to open an issue so we can expand the README to fix the unclarity.
+
+### Settings Backend<a name="settings-backend"></a>
+
+If you want to store your settings elsewhere you can create a backend to read settings from a database for example. Look at the default settings module for the required callbacks.
+
+> Feel free to open an issue if you have questions.
+
+### Metrics Backend<a name="metrics-backend"></a>
+
+Riemannx supports sending basic metrics, you can create a custom module to support any infrastructure (graphite, influx etc.). There are 3 callbacks currently:
+
+* `udp_message_sent(size)` - informs when a udp message is sent and gives the size of the message.
+* `tcp_message_sent(size)` - informs when a tcp message is sent and gives the size of the message.
+* `tls_message_sent(size)` - informs when a tls message is sent and gives the size of the message.
+
 
 ## 5. Contributions<a name="contribute"></a>
 

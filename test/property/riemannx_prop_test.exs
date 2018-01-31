@@ -2,14 +2,14 @@ defmodule RiemannxTest.Property.RiemannXPropTest do
   use PropCheck
   alias Riemannx.Proto.Msg
 
-  def events() do
+  def events do
     non_empty(
       list([service: elixir_string(),
             metric: integer(),
             attributes: list({atom(), atom()}),
             description: elixir_string()]))
   end
-  def encoded_events() do
+  def encoded_events do
     let events <- events() do
       Riemannx.create_events_msg(events)
     end
@@ -27,7 +27,7 @@ defmodule RiemannxTest.Property.RiemannXPropTest do
                     {1, range(?0, ?9)}
                   ]))
   end
-  def elixir_string() do
+  def elixir_string do
     let t <- realistic_text() do
       to_string(t)
     end

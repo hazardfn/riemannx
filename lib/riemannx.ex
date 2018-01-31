@@ -1,6 +1,6 @@
 defmodule Riemannx do
   @moduledoc """
-  Riemannx is a riemann client that supports UDP/TCP sockets and also supports
+  Riemannx is a riemann client that supports UDP/TCP/TLS sockets and also supports
   a hybrid connection where smaller packets are sent via UDP and the rest over
   TCP.
 
@@ -12,20 +12,38 @@ defmodule Riemannx do
 
   ```elixir
   config :riemannx, [
-    # Client settings
-    host: "127.0.0.1",
-    tcp_port: 5555,
-    udp_port: 5555,
-    max_udp_size: 16384, # Must be the same as server side, the default is riemann's default.
-    type: :combined, # A choice of :tcp, :udp, :combined or :tls
-    retry_count: 5, # How many times to re-attempt a TCP connection before crashing.
-    retry_interval: 1, # Interval to wait before the next TCP connection attempt.
-    ssl_opts: [], # Used for tls, see TLS section in the README for details.
-
-    # Poolboy settings
-    pool_size: 5, # Pool size will be 10 if you use a combined type.
-    max_overflow: 5, # Max overflow will be 10 if you use a combined type.
-    strategy: :fifo, # See Riemannx.Settings documentation for more info.
+    host: "localhost", # The riemann server
+    event_host: "my_app", # You can override the host name sent to riemann if you want (see: Host Injection)
+    type: :combined, # The type of connection you want to run (:tcp, :udp, :tls or :combined)
+    tcp: [
+      port: 5555,
+      retry_count: 5, # How many times to re-attempt a TCP connection
+      retry_interval: 1000, # Interval to wait before the next TCP connection attempt (milliseconds).
+      priority: :high, # Priority to give TCP workers.
+      options: [], # Specify additional options to be passed to gen_tcp (NOTE: [:binary, nodelay: true, packet: 4, active: true] will be added to whatever you type here as they are deemed essential)
+      pool_size: 5, # How many TCP workers should be in the pool.
+      max_overflow: 5, # Under heavy load how many more TCP workers can be created to meet demand?
+      strategy: :fifo # The poolboy strategy for retrieving workers from the queue
+    ],
+    udp: [
+      port: 5555,
+      priority: :high,
+      options: [], # Specify additional options to be passed to gen_udp (NOTE: [:binary, sndbuf: max_udp_size()] will be added to whatever you type here as they are deemed essential)
+      max_size: 16_384, # Maximum accepted packet size (this is configured in your Riemann server)
+      pool_size: 5,
+      max_overflow: 5,
+      strategy: :fifo
+    ],
+    tls: [
+      port: 5554,
+      retry_count: 5, # How many times to re-attempt a TLS connection
+      retry_interval: 1000, # Interval to wait before the next TLS connection attempt (milliseconds).
+      priority: :high,
+      options: [], # Specify additional options to be passed to :ssl (NOTE: [:binary, nodelay: true, packet: 4, active: true] will be added to whatever you type here as they are deemed essential)
+      pool_size: 5,
+      max_overflow: 5,
+      strategy: :fifo
+    ]
   ]
   ```
 
@@ -154,10 +172,10 @@ defmodule Riemannx do
   defp enqueue_query(message, timeout) do
     result = case type() do
       type when type in [:tls, :tcp] ->
-        worker = Riemannx.Connection.get_worker(message)
-        if is_pid(worker), do: Riemannx.Connection.query(worker, message, self())
+        worker = Conn.get_worker(message)
+        if is_pid(worker), do: Conn.query(worker, message, self())
       type when type in [:combined, :udp] ->
-        Riemannx.Connection.query(nil, message, self())
+        Conn.query(nil, message, self())
     end
     if result == :ok do
       receive do
@@ -172,9 +190,9 @@ defmodule Riemannx do
   end
 
   defp enqueue_sync(message) do
-    case Riemannx.Connection.get_worker(message) do
+    case Conn.get_worker(message) do
       worker when is_pid(worker) ->
-        result = Riemannx.Connection.send(worker, message)
+        result = Conn.send(worker, message)
         unless result == :ok, do: GenServer.stop(worker, :unable_to_send)
         result
       error ->
@@ -183,9 +201,9 @@ defmodule Riemannx do
   end
 
   defp enqueue(message) do
-    case Riemannx.Connection.get_worker(message) do
+    case Conn.get_worker(message) do
       worker when is_pid(worker) ->
-        Riemannx.Connection.send_async(worker, message)
+        Conn.send_async(worker, message)
       _error ->
         :ok
     end

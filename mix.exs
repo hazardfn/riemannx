@@ -1,7 +1,7 @@
 defmodule Riemannx.Mixfile do
   use Mix.Project
 
-  @version "3.0.2"
+  @version "3.1.0"
 
   def project do
     [
@@ -46,7 +46,8 @@ defmodule Riemannx.Mixfile do
       {:excoveralls, "~> 0.7", only: [:test]},
       {:ex_doc, "~> 0.12", only: [:dev], runtime: false},
       {:propcheck, "~> 1.0.4", only: :test},
-      {:dialyxir, "~> 0.5", only: [:test], runtime: false}
+      {:dialyxir, "~> 0.5", only: [:dev, :test], runtime: false},
+      {:credo, "~> 0.9.0-rc2", only: [:dev, :test], runtime: false}
     ]
   end
 

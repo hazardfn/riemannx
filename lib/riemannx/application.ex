@@ -3,6 +3,9 @@ defmodule Riemannx.Application do
   import Riemannx.Settings
   use Application
 
+  # ===========================================================================
+  # Application API
+  # ===========================================================================
   def start(_type, _args) do
     type = type()
     children =
@@ -18,53 +21,23 @@ defmodule Riemannx.Application do
     Supervisor.start_link(children, opts)
   end
 
-  defp single_pool(:tcp) do
+  # ===========================================================================
+  # Private
+  # ===========================================================================
+  defp single_pool(t) do
     poolboy_config = [
-      name: {:local, pool_name(:tcp)},
-      worker_module: module(:tcp),
-      size: pool_size(:tcp),
-      max_overflow: max_overflow(:tcp),
-      strategy: strategy(:tcp)
+      name: {:local, pool_name(t)},
+      worker_module: module(t),
+      size: pool_size(t),
+      max_overflow: max_overflow(t),
+      strategy: strategy(t)
     ]
-    [:poolboy.child_spec(pool_name(:tcp), poolboy_config, [])]
-  end
-  defp single_pool(:udp) do
-    poolboy_config = [
-      name: {:local, pool_name(:udp)},
-      worker_module: module(:udp),
-      size: pool_size(:udp),
-      max_overflow: max_overflow(:udp),
-      strategy: strategy(:udp)
-    ]
-    [:poolboy.child_spec(pool_name(:udp), poolboy_config, [])]
-  end
-  defp single_pool(:tls) do
-    poolboy_config = [
-      name: {:local, pool_name(:tls)},
-      worker_module: module(:tls),
-      size: pool_size(:tls),
-      max_overflow: max_overflow(:tls),
-      strategy: strategy(:tls)
-    ]
-    [:poolboy.child_spec(pool_name(:tls), poolboy_config, [])]
+    [:poolboy.child_spec(pool_name(t), poolboy_config, [])]
   end
 
-  defp combined_pool() do
-    tcp_config = [
-      name: {:local, pool_name(:tcp)},
-      worker_module: Riemannx.Connections.TCP,
-      size: pool_size(:tcp),
-      max_overflow: max_overflow(:tcp),
-      strategy: strategy(:tcp)
-    ]
-    udp_config = [
-      name: {:local, pool_name(:udp)},
-      worker_module: Riemannx.Connections.UDP,
-      size: pool_size(:udp),
-      max_overflow: max_overflow(:udp),
-      strategy: strategy(:udp)
-    ]
-    [:poolboy.child_spec(pool_name(:tcp), tcp_config, []),
-     :poolboy.child_spec(pool_name(:udp), udp_config, [])]
+  defp combined_pool do
+    tcp_config = single_pool(:tcp)
+    udp_config = single_pool(:udp)
+    List.flatten([tcp_config, udp_config])
   end
 end

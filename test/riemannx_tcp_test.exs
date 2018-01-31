@@ -6,6 +6,8 @@ defmodule RiemannxTest.TCP do
   alias Riemannx.Connections.TCP, as: Client
   alias RiemannxTest.Server, as: Server
   alias RiemannxTest.Property.RiemannXPropTest, as: Prop
+  alias Riemannx.Proto.Event
+  alias Riemannx.Connection
 
   setup_all do
     Application.load(:riemannx)
@@ -72,7 +74,7 @@ defmodule RiemannxTest.TCP do
     Utils.update_setting(:tcp, :retry_count, 1)
     Utils.update_setting(:tcp, :retry_interval, 1)
     Utils.update_setting(:tcp, :port, 5554)
-    conn = %Riemannx.Connection{
+    conn = %Connection{
       host: to_charlist("localhost"),
       port: 5554
     }
@@ -83,22 +85,22 @@ defmodule RiemannxTest.TCP do
 
   test "Send failure is captured and returned on sync send" do
     Utils.update_setting(:tcp, :port, 5554)
-    conn = %Riemannx.Connection{
+    conn = %Connection{
       host: to_charlist("localhost"),
       port: 5554,
       #:erlang.list_to_port is better but only in 20.
-      socket: RiemannxTest.Utils.term_to_port("#Port<0.9999>")
+      socket: Utils.term_to_port("#Port<0.9999>")
     }
     refute :ok == Client.handle_call({:send_msg, <<>>}, self(), conn)
   end
 
   test "Send failure is captured and returned on query" do
     Utils.update_setting(:tcp, :port, 5554)
-    conn = %Riemannx.Connection{
+    conn = %Connection{
       host: to_charlist("localhost"),
       port: 5554,
       #:erlang.list_to_port is better but only in 20.
-      socket: RiemannxTest.Utils.term_to_port("#Port<0.9999>")
+      socket: Utils.term_to_port("#Port<0.9999>")
     }
     refute :ok == Client.handle_call({:send_msg, <<>>, self()}, self(), conn)
   end
@@ -116,7 +118,7 @@ defmodule RiemannxTest.TCP do
 
     Server.set_response(:tcp, msg)
     events = Riemannx.query("test")
-    assert events == Riemannx.Proto.Event.deconstruct(event)
+    assert events == Event.deconstruct(event)
   end
 
   test "Can query events w/ charlist" do
@@ -132,7 +134,7 @@ defmodule RiemannxTest.TCP do
 
     Server.set_response(:tcp, msg)
     events = Riemannx.query('test')
-    assert events == Riemannx.Proto.Event.deconstruct(event)
+    assert events == Event.deconstruct(event)
   end
 
   test "Errors are handled in query" do
@@ -157,6 +159,36 @@ defmodule RiemannxTest.TCP do
     Server.set_response(:tcp, msg)
     events = Riemannx.query("test")
     assert match?([], events)
+  end
+
+  test "Metrics sent on async send" do
+    event = [
+      service: "riemannx-elixir",
+      metric: 1,
+      attributes: [a: 1],
+      description: "test"
+    ]
+    enc_event = Riemannx.create_events_msg(event)
+    size      = byte_size(enc_event)
+    Application.put_env(:riemannx, :metrics_module, RiemannxTest.Metrics.Test)
+    Application.put_env(:riemannx, :test_pid, self())
+    Riemannx.send_async(event)
+    assert_receive(^size)
+  end
+
+  test "Metrics sent on sync send" do
+    event = [
+      service: "riemannx-elixir",
+      metric: 1,
+      attributes: [a: 1],
+      description: "test"
+    ]
+    enc_event = Riemannx.create_events_msg(event)
+    size      = byte_size(enc_event)
+    Application.put_env(:riemannx, :metrics_module, RiemannxTest.Metrics.Test)
+    Application.put_env(:riemannx, :test_pid, self())
+    Riemannx.send(event)
+    assert_receive(^size)
   end
 
   property "All reasonable metrics", [:verbose] do
