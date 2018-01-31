@@ -6,6 +6,7 @@ defmodule Riemannx.Connections.UDP do
   """
   @behaviour Riemannx.Connection
   alias Riemannx.Connection
+  alias Riemannx.Metrics
   import Riemannx.Settings
   require Logger
   use GenServer
@@ -56,6 +57,7 @@ defmodule Riemannx.Connections.UDP do
   end
   def handle_cast({:send_msg, msg}, state) do
     :ok = :gen_udp.send(state.socket, state.host, state.port, msg)
+    Metrics.udp_message_sent(byte_size(msg))
     Connection.release(self(), msg)
     {:noreply, state}
   end
@@ -63,6 +65,7 @@ defmodule Riemannx.Connections.UDP do
   def handle_call({:send_msg, msg}, _from, state) do
     reply = case :gen_udp.send(state.socket, state.host, state.port, msg) do
       :ok ->
+        Metrics.udp_message_sent(byte_size(msg))
         :ok
       {:error, code} ->
         [error: "#{__MODULE__} | Unable to send event: #{code}", message: msg]

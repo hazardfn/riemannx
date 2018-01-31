@@ -13,10 +13,6 @@ defmodule Riemannx.Connections.Combined do
   in either the TCP or UDP modules based on a simple byte_size check of the
   given event.
 
-  * Your pool size and overflow configuration is doubled when using a combined
-  connection - for example if you set a pool size of 10 the actual pool size
-  will be 20 to accomodate both UDP (10 workers) and TCP (10 workers).
-
   * Even though this is the recommended default that is based on my use-case
   for this library. Your requirements may be VERY different. Using UDP at all
   is unreliable but in my use case I don't care if some events don't make it,
@@ -41,7 +37,7 @@ defmodule Riemannx.Connections.Combined do
   # ===========================================================================
   # Private
   # ===========================================================================
-  defp query_worker(), do: TCP.get_worker(nil)
+  defp query_worker, do: TCP.get_worker(nil)
 
   defp conn_module(event) do
     if byte_size(event) > max_udp_size(), do: TCP, else: UDP

@@ -3,6 +3,7 @@ defmodule RiemannxTest.Servers.TCP do
   A simple TCP server that forwards messages received back to the test process
   """
   alias Riemannx.Proto.Msg
+  alias Riemannx.Settings
   use GenServer
   @behaviour RiemannxTest.Server
 
@@ -10,15 +11,16 @@ defmodule RiemannxTest.Servers.TCP do
   # Callbacks
   # ===========================================================================
   def start(return_pid) do
-    {:ok, server} = GenServer.start(__MODULE__, %{test_pid: return_pid, socket: nil, response: nil}, [name: __MODULE__])
-    :ok = GenServer.call(server, :listen)
-    :ok = GenServer.cast(server, :accept)
+    state         = %{test_pid: return_pid, socket: nil, response: nil}
+    {:ok, server} = GenServer.start(__MODULE__, state, [name: __MODULE__])
+    :ok           = GenServer.call(server, :listen)
+    :ok           = GenServer.cast(server, :accept)
     {:ok, server}
   end
 
   def set_response(response), do: GenServer.call(__MODULE__, {:response, response})
 
-  def stop() do
+  def stop do
     GenServer.call(__MODULE__, :cleanup)
     GenServer.stop(__MODULE__, :normal)
     :ok
@@ -60,12 +62,13 @@ defmodule RiemannxTest.Servers.TCP do
   end
 
   defp listen(state) do
-    port = Riemannx.Settings.port(:tcp)
+    port = Settings.port(:tcp)
     {:ok, socket} = try_listen(port)
     {:reply, :ok, %{state | socket: socket}}
   end
   defp try_listen(port) do
-    {:ok, _} = :gen_tcp.listen(port, [:binary, packet: 4, active: true, reuseaddr: true])
+    args     = [:binary, packet: 4, active: true, reuseaddr: true]
+    {:ok, _} = :gen_tcp.listen(port, args)
   rescue
     MatchError -> try_listen(port)
   end

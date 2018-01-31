@@ -3,6 +3,7 @@ defmodule Riemannx.Settings.Default do
   This module follows the default config format as of 3.0.0.
   """
   import Application
+  alias Riemannx.Metrics.Default
   require IEx
   @types [:tls, :tcp, :udp]
 
@@ -46,6 +47,9 @@ defmodule Riemannx.Settings.Default do
     end
   end
 
+  @spec metrics_module() :: module()
+  def metrics_module, do: get_env(:riemannx, :metrics_module, Default)
+
   @spec host() :: String.t()
   def host, do: get_env(:riemannx, :host, "localhost")
 
@@ -66,7 +70,7 @@ defmodule Riemannx.Settings.Default do
   def options(:udp), do: extract(:udp, :options, []) ++ [:binary, sndbuf: max_udp_size()]
 
   @spec events_host() :: binary()
-  def events_host() do
+  def events_host do
     inet_host  = inet_host()
     event_host = get_env(:riemannx, :event_host, nil)
     cond do
@@ -98,7 +102,7 @@ defmodule Riemannx.Settings.Default do
   # ===========================================================================
   ## It's best nobody knows about this, it's internal.
   @spec inet_host() :: binary() | nil
-  defp inet_host(), do: get_env(:riemannx, :inet_host, nil)
+  defp inet_host, do: get_env(:riemannx, :inet_host, nil)
 
   defp extract(t, opt, default) do
     kw = get_env(:riemannx, t, [])

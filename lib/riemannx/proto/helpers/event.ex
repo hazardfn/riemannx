@@ -9,7 +9,8 @@ defmodule Riemannx.Proto.Helpers.Event do
     quote do
       alias Riemannx.Proto.Attribute
 
-      # is_list(hd(list)) detects when it's a list of events, since keyword events are also lists
+      # is_list(hd(list)) detects when it's a list of events, since keyword
+      # events are also lists
       # [[service: "a", metric: 1], %{service: "b", metric: 2}]
       def list_to_events(list) when is_list(hd(list)) or is_map(hd(list)) do
         Enum.map(list, &build/1)
@@ -36,7 +37,8 @@ defmodule Riemannx.Proto.Helpers.Event do
       def deconstruct(event), do: deconstruct(event, nil)
 
       def deconstruct(event, metric) do
-        attributes = Enum.reduce(event.attributes, %{}, &Map.put(&2, &1.key, &1.value))
+        attributes =
+          Enum.reduce(event.attributes, %{}, &Map.put(&2, &1.key, &1.value))
 
         event
         |> Map.from_struct

@@ -6,6 +6,7 @@ defmodule RiemannxTest.TLS do
   alias RiemannxTest.Utils
   alias Riemannx.Connections.TLS, as: Client
   alias RiemannxTest.Property.RiemannXPropTest, as: Prop
+  alias Riemannx.Proto.Event
 
   setup_all do
     Application.load(:riemannx)
@@ -116,9 +117,9 @@ defmodule RiemannxTest.TLS do
     msg   = Msg.new(ok: true, events: event)
     msg   = Msg.encode(msg)
 
-    RiemannxTest.Server.set_response(:tls, msg)
+    Server.set_response(:tls, msg)
     events = Riemannx.query("test")
-    assert events == Riemannx.Proto.Event.deconstruct(event)
+    assert events == Event.deconstruct(event)
   end
 
   test "Errors are handled in query" do
@@ -143,6 +144,36 @@ defmodule RiemannxTest.TLS do
     Server.set_response(:tls, msg)
     events = Riemannx.query("test")
     assert match?([], events)
+  end
+
+  test "Metrics sent on async send" do
+    event = [
+      service: "riemannx-elixir",
+      metric: 1,
+      attributes: [a: 1],
+      description: "test"
+    ]
+    enc_event = Riemannx.create_events_msg(event)
+    size      = byte_size(enc_event)
+    Application.put_env(:riemannx, :metrics_module, RiemannxTest.Metrics.Test)
+    Application.put_env(:riemannx, :test_pid, self())
+    Riemannx.send_async(event)
+    assert_receive(^size)
+  end
+
+  test "Metrics sent on sync send" do
+    event = [
+      service: "riemannx-elixir",
+      metric: 1,
+      attributes: [a: 1],
+      description: "test"
+    ]
+    enc_event = Riemannx.create_events_msg(event)
+    size      = byte_size(enc_event)
+    Application.put_env(:riemannx, :metrics_module, RiemannxTest.Metrics.Test)
+    Application.put_env(:riemannx, :test_pid, self())
+    Riemannx.send(event)
+    assert_receive(^size)
   end
 
   property "All reasonable metrics", [:verbose] do

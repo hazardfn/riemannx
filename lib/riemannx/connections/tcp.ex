@@ -14,6 +14,7 @@ defmodule Riemannx.Connections.TCP do
   @behaviour Riemannx.Connection
   alias Riemannx.Connection
   alias Riemannx.Proto.Msg
+  alias Riemannx.Metrics
   import Riemannx.Settings
   require Logger
   use GenServer
@@ -75,6 +76,7 @@ defmodule Riemannx.Connections.TCP do
   end
   def handle_cast({:send_msg, msg}, state) do
     :ok = :gen_tcp.send(state.socket, msg)
+    Metrics.tcp_message_sent(byte_size(msg))
     Connection.release(self(), msg)
     {:noreply, state}
   end
@@ -82,6 +84,7 @@ defmodule Riemannx.Connections.TCP do
   def handle_call({:send_msg, msg}, _from, state) do
     reply = case :gen_tcp.send(state.socket, msg) do
       :ok ->
+        Metrics.tcp_message_sent(byte_size(msg))
         :ok
       {:error, code} ->
         [error: "#{__MODULE__} | Unable to send event: #{code}", message: msg]
@@ -92,6 +95,7 @@ defmodule Riemannx.Connections.TCP do
   def handle_call({:send_msg, msg, to}, _from, state) do
     reply = case :gen_tcp.send(state.socket, msg) do
       :ok ->
+        Metrics.tcp_message_sent(byte_size(msg))
         :ok
       {:error, code} ->
         [error: "#{__MODULE__} | Unable to send event: #{code}", message: msg]

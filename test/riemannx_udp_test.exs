@@ -118,6 +118,36 @@ defmodule RiemannxTest.UDP do
     assert match?([error: _e,  message: _m], Riemannx.query("test"))
   end
 
+  test "Metrics sent on async send" do
+    event = [
+      service: "riemannx-elixir",
+      metric: 1,
+      attributes: [a: 1],
+      description: "test"
+    ]
+    enc_event = Riemannx.create_events_msg(event)
+    size      = byte_size(enc_event)
+    Application.put_env(:riemannx, :metrics_module, RiemannxTest.Metrics.Test)
+    Application.put_env(:riemannx, :test_pid, self())
+    Riemannx.send_async(event)
+    assert_receive(^size)
+  end
+
+  test "Metrics sent on sync send" do
+    event = [
+      service: "riemannx-elixir",
+      metric: 1,
+      attributes: [a: 1],
+      description: "test"
+    ]
+    enc_event = Riemannx.create_events_msg(event)
+    size      = byte_size(enc_event)
+    Application.put_env(:riemannx, :metrics_module, RiemannxTest.Metrics.Test)
+    Application.put_env(:riemannx, :test_pid, self())
+    Riemannx.send(event)
+    assert_receive(^size)
+  end
+
   property "All reasonable metrics", [:verbose] do
     numtests(100, forall events in Prop.udp_events(max_udp_size()) do
         events = Prop.deconstruct_events(events)
@@ -134,7 +164,7 @@ defmodule RiemannxTest.UDP do
     end)
   end
 
-  def refute_events_received() do
+  def refute_events_received do
     receive do
       {<<>>, :udp} -> refute_events_received()
       {_, :udp} -> false

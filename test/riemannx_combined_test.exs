@@ -6,6 +6,7 @@ defmodule RiemannxTest.Combined do
   alias RiemannxTest.Utils
   alias RiemannxTest.Server
   alias RiemannxTest.Property.RiemannXPropTest, as: Prop
+  alias Riemannx.Proto.Event
 
   setup_all do
     Application.load(:riemannx)
@@ -111,7 +112,7 @@ defmodule RiemannxTest.Combined do
 
     Server.set_response(:tcp, msg)
     events = Riemannx.query("test")
-    assert events == Riemannx.Proto.Event.deconstruct(event)
+    assert events == Event.deconstruct(event)
   end
 
   property "All reasonable metrics async", [:verbose] do

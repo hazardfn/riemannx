@@ -3,6 +3,7 @@ defmodule RiemannxTest.Servers.UDP do
   A simple UDP server that forwards messages received back to the test process
   """
   alias Riemannx.Proto.Msg
+  alias Riemannx.Settings
   use GenServer
   @behaviour RiemannxTest.Server
 
@@ -10,14 +11,15 @@ defmodule RiemannxTest.Servers.UDP do
   # Callbacks
   # ===========================================================================
   def start(return_pid) do
-    {:ok, server} = GenServer.start(__MODULE__, %{test_pid: return_pid, socket: nil}, [name: __MODULE__])
-    :ok = GenServer.call(__MODULE__, :open)
+    state         = %{test_pid: return_pid, socket: nil}
+    {:ok, server} = GenServer.start(__MODULE__, state, [name: __MODULE__])
+    :ok           = GenServer.call(__MODULE__, :open)
     {:ok, server}
   end
 
   def set_response(response), do: GenServer.call(__MODULE__, {:response, response})
 
-  def stop() do
+  def stop do
     GenServer.call(__MODULE__, :cleanup)
     GenServer.stop(__MODULE__, :normal)
     :ok
@@ -51,8 +53,8 @@ defmodule RiemannxTest.Servers.UDP do
   end
 
   defp open(state) do
-    port     = Riemannx.Settings.port(:udp)
-    max_size = Riemannx.Settings.max_udp_size()
+    port     = Settings.port(:udp)
+    max_size = Settings.max_udp_size()
     {:ok, socket} = try_open(port, max_size)
     {:reply, :ok, %{state | socket: socket}}
   end
