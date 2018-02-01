@@ -65,21 +65,24 @@ defmodule Riemannx.Settings.Legacy do
   @spec retry_interval(conn_type()) :: non_neg_integer()
   def retry_interval(_t), do: get_env(:riemannx, :retry_interval, 5000)
 
-  def options(:tls), do: get_env(:riemannx, :ssl_opts, []) ++ [:binary, nodelay: true, packet: 4, active: true]
+  def options(:tls),
+    do: get_env(:riemannx, :ssl_opts, []) ++ [:binary, nodelay: true, packet: 4, active: true]
+
   def options(:tcp), do: [:binary, nodelay: true, packet: 4, active: true]
   def options(:udp), do: [:binary, sndbuf: max_udp_size()]
 
   @spec events_host() :: binary()
   def events_host do
-    inet_host  = inet_host()
+    inet_host = inet_host()
     event_host = get_env(:riemannx, :event_host, nil)
+
     cond do
       inet_host != nil && event_host == nil ->
         inet_host
 
       event_host == nil && inet_host == nil ->
-        {:ok, host} = :inet.gethostname
-        host        = to_string(host)
+        {:ok, host} = :inet.gethostname()
+        host = to_string(host)
         put_env(:riemannx, :inet_host, host)
         host
 
@@ -93,7 +96,7 @@ defmodule Riemannx.Settings.Legacy do
     case get_env(:riemannx, :priority, :normal) do
       p when p in [:low, :normal, :high] -> p
       p when p in [:max] -> raise("You should NOT use the max priority!")
-      p -> raise("#{inspect p} is not a valid priority!")
+      p -> raise("#{inspect(p)} is not a valid priority!")
     end
   end
 
@@ -103,5 +106,4 @@ defmodule Riemannx.Settings.Legacy do
   ## It's best nobody knows about this, it's internal.
   @spec inet_host() :: binary() | nil
   defp inet_host, do: get_env(:riemannx, :inet_host, nil)
-
 end

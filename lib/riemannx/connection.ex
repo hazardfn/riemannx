@@ -12,13 +12,11 @@ defmodule Riemannx.Connection do
   # ===========================================================================
   # Struct
   # ===========================================================================
-  defstruct [
-    host: nil,
-    port: nil,
-    options: [],
-    to: nil,
-    socket: nil
-  ]
+  defstruct host: nil,
+            port: nil,
+            options: [],
+            to: nil,
+            socket: nil
 
   # ===========================================================================
   # Types
@@ -30,12 +28,12 @@ defmodule Riemannx.Connection do
   @type retry_count :: non_neg_integer() | :infinity
   @type socket :: :gen_udp.socket() | :gen_tcp.socket() | :ssl.sslsocket()
   @type t() :: %__MODULE__{
-    host: String.t() | nil,
-    port: :inet.port_number() | nil,
-    options: list() | nil,
-    to: pid() | nil,
-    socket: socket() | nil
-  }
+          host: String.t() | nil,
+          port: :inet.port_number() | nil,
+          options: list() | nil,
+          to: pid() | nil,
+          socket: socket() | nil
+        }
 
   # ===========================================================================
   # Callbacks

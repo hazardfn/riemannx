@@ -31,17 +31,22 @@ defmodule Riemannx.Proto.Helpers.Event do
         Enum.map(events, &deconstruct/1)
       end
 
-      def deconstruct(%{metric_sint64: int} = event) when is_integer(int),  do: deconstruct(event, int)
-      def deconstruct(%{metric_d: double}   = event) when is_float(double), do: deconstruct(event, double)
-      def deconstruct(%{metric_f: float}    = event) when is_float(float),  do: deconstruct(event, float)
+      def deconstruct(%{metric_sint64: int} = event) when is_integer(int),
+        do: deconstruct(event, int)
+
+      def deconstruct(%{metric_d: double} = event) when is_float(double),
+        do: deconstruct(event, double)
+
+      def deconstruct(%{metric_f: float} = event) when is_float(float),
+        do: deconstruct(event, float)
+
       def deconstruct(event), do: deconstruct(event, nil)
 
       def deconstruct(event, metric) do
-        attributes =
-          Enum.reduce(event.attributes, %{}, &Map.put(&2, &1.key, &1.value))
+        attributes = Enum.reduce(event.attributes, %{}, &Map.put(&2, &1.key, &1.value))
 
         event
-        |> Map.from_struct
+        |> Map.from_struct()
         |> Map.put(:metric, metric)
         |> Map.delete(:metric_d)
         |> Map.delete(:metric_f)
@@ -55,27 +60,31 @@ defmodule Riemannx.Proto.Helpers.Event do
   def build(args, mod) do
     args
     |> Enum.into(%{})
-    |> Map.put_new_lazy(:time, fn() -> :erlang.system_time(:seconds) end)
+    |> Map.put_new_lazy(:time, fn -> :erlang.system_time(:seconds) end)
     |> Map.put_new_lazy(:host, &Settings.events_host/0)
     |> set_attributes_field
     |> set_metric_pb_fields
-    |> Map.to_list
+    |> Map.to_list()
     |> mod.new()
   end
 
   defp set_attributes_field(%{attributes: a} = map) when not is_nil(a) do
     Map.put(map, :attributes, Attribute.build(a))
   end
+
   defp set_attributes_field(map), do: map
 
   defp set_metric_pb_fields(%{metric: i} = map) when is_integer(i) do
     Map.put(map, :metric_sint64, i)
   end
+
   defp set_metric_pb_fields(%{metric: f} = map) when is_float(f) do
     Map.put(map, :metric_d, f)
   end
+
   defp set_metric_pb_fields(%{metric: m}) when not is_nil(m) do
     raise InvalidMetricError, metric: m
   end
+
   defp set_metric_pb_fields(map), do: map
 end

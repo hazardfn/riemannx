@@ -1,30 +1,30 @@
-defmodule RiemannxTest.Combined do
+defmodule RiemannxTest.Legacy.Combined do
   use ExUnit.Case, async: false
   use PropCheck
   import Riemannx.Settings
   alias Riemannx.Proto.Msg
-  alias RiemannxTest.Utils
-  alias RiemannxTest.Server
   alias RiemannxTest.Property.RiemannXPropTest, as: Prop
+  alias RiemannxTest.Legacy.Servers.TCP
+  alias RiemannxTest.Legacy.Servers.UDP
   alias Riemannx.Proto.Event
 
   setup_all do
     Application.load(:riemannx)
     Application.put_env(:riemannx, :type, :combined)
+    Application.put_env(:riemannx, :max_udp_size, 16_384)
+    Application.put_env(:riemannx, :settings_module, Riemannx.Settings.Legacy)
     :ok
   end
 
   setup do
-    Utils.update_setting(:udp, :max_size, 16_384)
-    Utils.update_setting(:udp, :port, 5555)
-    Utils.update_setting(:tcp, :port, 5555)
-    {:ok, tcp_server} = Server.start(:tcp, self())
-    {:ok, udp_server} = Server.start(:udp, self())
+    {:ok, tcp_server} = TCP.start(self())
+    {:ok, udp_server} = UDP.start(self())
     Application.ensure_all_started(:riemannx)
+    Application.put_env(:riemannx, :max_udp_size, 16_384)
 
     on_exit(fn ->
-      Server.stop(:tcp)
-      Server.stop(:udp)
+      TCP.stop(tcp_server)
+      UDP.stop(udp_server)
       Application.stop(:riemannx)
     end)
 
@@ -97,12 +97,13 @@ defmodule RiemannxTest.Combined do
       ]
     ]
 
-    Utils.update_setting(:udp, :max_size, 1)
+    Application.put_env(:riemannx, :max_udp_size, 1)
     Riemannx.send_async(events)
     assert_events_received(events, :tcp)
+    Application.put_env(:riemannx, :max_udp_size, 16_384)
   end
 
-  test "Queries are forwarded via TCP" do
+  test "Queries are forwarded via TCP", context do
     event = [
       service: "riemannx-elixir",
       metric: 1,
@@ -114,7 +115,7 @@ defmodule RiemannxTest.Combined do
     msg = Msg.new(ok: true, events: event)
     msg = Msg.encode(msg)
 
-    Server.set_response(:tcp, msg)
+    TCP.set_qr_response(context[:tcp_server], msg)
     events = Riemannx.query("test")
     assert events == Event.deconstruct(event)
   end

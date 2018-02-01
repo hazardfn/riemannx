@@ -64,21 +64,26 @@ defmodule Riemannx.Settings.Default do
   @spec retry_interval(conn_type()) :: non_neg_integer()
   def retry_interval(t), do: extract(t, :retry_interval, 5000)
 
-  def options(:tls), do: extract(:tls, :options, []) ++ [:binary, nodelay: true, packet: 4, active: true]
-  def options(:tcp), do: extract(:tcp, :options, []) ++ [:binary, nodelay: true, packet: 4, active: true]
+  def options(:tls),
+    do: extract(:tls, :options, []) ++ [:binary, nodelay: true, packet: 4, active: true]
+
+  def options(:tcp),
+    do: extract(:tcp, :options, []) ++ [:binary, nodelay: true, packet: 4, active: true]
+
   def options(:udp), do: extract(:udp, :options, []) ++ [:binary, sndbuf: max_udp_size()]
 
   @spec events_host() :: binary()
   def events_host do
-    inet_host  = inet_host()
+    inet_host = inet_host()
     event_host = get_env(:riemannx, :event_host, nil)
+
     cond do
       inet_host != nil && event_host == nil ->
         inet_host
 
       event_host == nil && inet_host == nil ->
-        {:ok, host} = :inet.gethostname
-        host        = to_string(host)
+        {:ok, host} = :inet.gethostname()
+        host = to_string(host)
         put_env(:riemannx, :inet_host, host)
         host
 
@@ -92,7 +97,7 @@ defmodule Riemannx.Settings.Default do
     case extract(t, :priority, :normal) do
       p when p in [:low, :normal, :high] -> p
       p when p in [:max] -> raise("You should NOT use the max priority!")
-      p -> raise("#{inspect p} is not a valid priority!")
+      p -> raise("#{inspect(p)} is not a valid priority!")
     end
   end
 

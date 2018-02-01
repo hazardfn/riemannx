@@ -21,6 +21,7 @@ defmodule Riemannx.Connections.UDP do
       :poolboy.checkout(pool_name(:udp), true, :infinity)
     end
   end
+
   def send(w, e), do: GenServer.call(w, {:send_msg, e})
   def send_async(w, e), do: GenServer.cast(w, {:send_msg, e})
   def query(_, m, _), do: [error: "Querying via UDP is not supported", message: m]
@@ -49,12 +50,11 @@ defmodule Riemannx.Connections.UDP do
   end
 
   def handle_cast(:init, _state) do
-    conn        = %Connection{host: to_charlist(host()),
-                              port: port(:udp),
-                              options: options(:udp)}
-    udp_socket  = udp_connect(conn)
+    conn = %Connection{host: to_charlist(host()), port: port(:udp), options: options(:udp)}
+    udp_socket = udp_connect(conn)
     {:noreply, %{conn | socket: udp_socket}}
   end
+
   def handle_cast({:send_msg, msg}, state) do
     :ok = :gen_udp.send(state.socket, state.host, state.port, msg)
     Metrics.udp_message_sent(byte_size(msg))
@@ -63,13 +63,16 @@ defmodule Riemannx.Connections.UDP do
   end
 
   def handle_call({:send_msg, msg}, _from, state) do
-    reply = case :gen_udp.send(state.socket, state.host, state.port, msg) do
-      :ok ->
-        Metrics.udp_message_sent(byte_size(msg))
-        :ok
-      {:error, code} ->
-        [error: "#{__MODULE__} | Unable to send event: #{code}", message: msg]
-    end
+    reply =
+      case :gen_udp.send(state.socket, state.host, state.port, msg) do
+        :ok ->
+          Metrics.udp_message_sent(byte_size(msg))
+          :ok
+
+        {:error, code} ->
+          [error: "#{__MODULE__} | Unable to send event: #{code}", message: msg]
+      end
+
     Connection.release(self(), msg)
     {:reply, reply, state}
   end
