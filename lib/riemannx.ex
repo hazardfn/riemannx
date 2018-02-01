@@ -144,13 +144,16 @@ defmodule Riemannx do
   """
   @spec query(String.t() | list(), timeout()) :: {:ok, events()} | Conn.error()
   def query(_q, _t \\ 5000)
+
   def query(query, timeout) when is_list(query) do
     query
-    |> :erlang.list_to_binary
+    |> :erlang.list_to_binary()
     |> query(timeout)
   end
+
   def query(query, timeout) when is_binary(query) do
     query = [query: Query.new(string: query)]
+
     query
     |> Msg.new()
     |> Msg.encode()
@@ -162,27 +165,31 @@ defmodule Riemannx do
   """
   def create_events_msg(events) do
     [events: Event.list_to_events(events)]
-    |> Msg.new
-    |> Msg.encode
+    |> Msg.new()
+    |> Msg.encode()
   end
 
   # ===========================================================================
   # Private
   # ===========================================================================
   defp enqueue_query(message, timeout) do
-    result = case type() do
-      type when type in [:tls, :tcp] ->
-        worker = Conn.get_worker(message)
-        if is_pid(worker), do: Conn.query(worker, message, self())
-      type when type in [:combined, :udp] ->
-        Conn.query(nil, message, self())
-    end
+    result =
+      case type() do
+        type when type in [:tls, :tcp] ->
+          worker = Conn.get_worker(message)
+          if is_pid(worker), do: Conn.query(worker, message, self())
+
+        type when type in [:combined, :udp] ->
+          Conn.query(nil, message, self())
+      end
+
     if result == :ok do
       receive do
-        {:ok, []}  -> []
+        {:ok, []} -> []
         {:ok, msg} -> Event.deconstruct(msg.events)
-        error      -> error
-      after timeout -> [error: "Query timed out", message: message]
+        error -> error
+      after
+        timeout -> [error: "Query timed out", message: message]
       end
     else
       result
@@ -195,6 +202,7 @@ defmodule Riemannx do
         result = Conn.send(worker, message)
         unless result == :ok, do: GenServer.stop(worker, :unable_to_send)
         result
+
       error ->
         error
     end
@@ -204,6 +212,7 @@ defmodule Riemannx do
     case Conn.get_worker(message) do
       worker when is_pid(worker) ->
         Conn.send_async(worker, message)
+
       _error ->
         :ok
     end

@@ -11,9 +11,9 @@ defmodule RiemannxTest.Servers.UDP do
   # Callbacks
   # ===========================================================================
   def start(return_pid) do
-    state         = %{test_pid: return_pid, socket: nil}
-    {:ok, server} = GenServer.start(__MODULE__, state, [name: __MODULE__])
-    :ok           = GenServer.call(__MODULE__, :open)
+    state = %{test_pid: return_pid, socket: nil}
+    {:ok, server} = GenServer.start(__MODULE__, state, name: __MODULE__)
+    :ok = GenServer.call(__MODULE__, :open)
     {:ok, server}
   end
 
@@ -36,12 +36,13 @@ defmodule RiemannxTest.Servers.UDP do
 
   def handle_info({:udp, _, _, _, msg}, state) do
     decoded = Msg.decode(msg)
-    events  = Enum.map(decoded.events, fn(e) -> %{e | time: 0} end)
+    events = Enum.map(decoded.events, fn e -> %{e | time: 0} end)
     decoded = %{decoded | events: events}
-    msg     = Msg.encode(decoded)
+    msg = Msg.encode(decoded)
     send(state.test_pid, {msg, :udp})
     {:noreply, state}
   end
+
   def handle_info(_msg, state), do: {:noreply, state}
 
   # ===========================================================================
@@ -53,11 +54,12 @@ defmodule RiemannxTest.Servers.UDP do
   end
 
   defp open(state) do
-    port     = Settings.port(:udp)
+    port = Settings.port(:udp)
     max_size = Settings.max_udp_size()
     {:ok, socket} = try_open(port, max_size)
     {:reply, :ok, %{state | socket: socket}}
   end
+
   def try_open(port, max_size) do
     {:ok, _} = :gen_udp.open(port, [:binary, active: true, recbuf: max_size])
   rescue

@@ -74,7 +74,7 @@ defmodule Riemannx.Settings do
 
   @doc """
   Returns the connection type set (tls, tcp, udp, combined).
-  
+
   Default: `:combined`
   """
   @spec type() :: conn_type() | :combined
@@ -179,9 +179,11 @@ defmodule Riemannx.Settings do
   @spec priority!(conn_type()) :: priority() | no_return()
   def priority!(t), do: settings_module().priority!(t)
 
-  # ===========================================================================
-  # Private
-  # ===========================================================================
+  @doc """
+  Returns the settings backend module you are using.
+
+  Default: `Riemannx.Settings.Default`
+  """
   @spec settings_module() :: module()
-  defp settings_module, do: get_env(:riemannx, :settings_module, Default)
+  def settings_module, do: get_env(:riemannx, :settings_module, Default)
 end
