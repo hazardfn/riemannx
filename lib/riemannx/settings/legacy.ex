@@ -1,6 +1,6 @@
-defmodule Riemannx.Settings.Default do
+defmodule Riemannx.Settings.Legacy do
   @moduledoc """
-  This module follows the default config format as of 3.0.0.
+  This module follows the legacy config format pre 3.0.0.
   """
   import Application
   alias Riemannx.Metrics.Default
@@ -25,13 +25,13 @@ defmodule Riemannx.Settings.Default do
   def pool_name(:udp), do: :riemannx_udp
 
   @spec pool_size(conn_type()) :: non_neg_integer()
-  def pool_size(t) when t in @types, do: extract(t, :pool_size, 2)
+  def pool_size(t) when t in @types, do: get_env(:riemannx, :pool_size, 2)
 
   @spec strategy(conn_type()) :: :fifo | :lifo
-  def strategy(t) when t in @types, do: extract(t, :strategy, :fifo)
+  def strategy(t) when t in @types, do: get_env(:riemannx, :strategy, :fifo)
 
   @spec max_overflow(conn_type()) :: non_neg_integer()
-  def max_overflow(t) when t in @types, do: extract(t, :max_overflow, 2)
+  def max_overflow(t) when t in @types, do: get_env(:riemannx, :max_overflow, 2)
 
   @spec type() :: :tcp | :udp | :tls | :combined
   def type, do: get_env(:riemannx, :type, :combined)
@@ -53,20 +53,21 @@ defmodule Riemannx.Settings.Default do
   def host, do: get_env(:riemannx, :host, "localhost")
 
   @spec port(:tcp | :udp | :tls) :: :inet.port_number()
-  def port(t), do: extract(t, :port, 5555)
+  def port(:udp), do: get_env(:riemannx, :udp_port, 5555)
+  def port(_t), do: get_env(:riemannx, :tcp_port, 5555)
 
   @spec max_udp_size() :: non_neg_integer()
-  def max_udp_size, do: extract(:udp, :max_size, 16_384)
+  def max_udp_size, do: get_env(:riemannx, :max_udp_size, 16_384)
 
   @spec retry_count(conn_type()) :: non_neg_integer() | :infinity
-  def retry_count(t), do: extract(t, :retry_count, 5)
+  def retry_count(_t), do: get_env(:riemannx, :retry_count, 5)
 
   @spec retry_interval(conn_type()) :: non_neg_integer()
-  def retry_interval(t), do: extract(t, :retry_interval, 5000)
+  def retry_interval(_t), do: get_env(:riemannx, :retry_interval, 5000)
 
-  def options(:tls), do: extract(:tls, :options, []) ++ [:binary, nodelay: true, packet: 4, active: true]
-  def options(:tcp), do: extract(:tcp, :options, []) ++ [:binary, nodelay: true, packet: 4, active: true]
-  def options(:udp), do: extract(:udp, :options, []) ++ [:binary, sndbuf: max_udp_size()]
+  def options(:tls), do: get_env(:riemannx, :ssl_opts, []) ++ [:binary, nodelay: true, packet: 4, active: true]
+  def options(:tcp), do: [:binary, nodelay: true, packet: 4, active: true]
+  def options(:udp), do: [:binary, sndbuf: max_udp_size()]
 
   @spec events_host() :: binary()
   def events_host do
@@ -89,7 +90,7 @@ defmodule Riemannx.Settings.Default do
 
   @spec priority!(conn_type()) :: Riemannx.Settings.priority() | no_return()
   def priority!(t) when t in @types do
-    case extract(t, :priority, :normal) do
+    case get_env(:riemannx, :priority, :normal) do
       p when p in [:low, :normal, :high] -> p
       p when p in [:max] -> raise("You should NOT use the max priority!")
       p -> raise("#{inspect p} is not a valid priority!")
@@ -103,8 +104,4 @@ defmodule Riemannx.Settings.Default do
   @spec inet_host() :: binary() | nil
   defp inet_host, do: get_env(:riemannx, :inet_host, nil)
 
-  defp extract(t, opt, default) do
-    kw = get_env(:riemannx, t, [])
-    Keyword.get(kw, opt, default)
-  end
 end
