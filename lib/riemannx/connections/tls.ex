@@ -49,14 +49,13 @@ defmodule Riemannx.Connections.TLS do
   end
 
   def handle_cast(:init, _state) do
-    conn        = %Connection{host: to_charlist(host()),
-                              port: port(:tls),
-                              options: options(:tls)}
+    conn = %Connection{host: to_charlist(host()), port: port(:tls), options: options(:tls)}
     retry_count = retry_count(:tls)
-    state       = conn
-    ssl_socket  = try_ssl_connect(state, retry_count)
+    state = conn
+    ssl_socket = try_ssl_connect(state, retry_count)
     {:noreply, %{state | socket: ssl_socket}}
   end
+
   def handle_cast({:send_msg, msg}, state) do
     :ok = :ssl.send(state.socket, msg)
     Metrics.tls_message_sent(byte_size(msg))
@@ -65,24 +64,31 @@ defmodule Riemannx.Connections.TLS do
   end
 
   def handle_call({:send_msg, msg}, _from, state) do
-    reply = case :ssl.send(state.socket, msg) do
-      :ok ->
-        Metrics.tls_message_sent(byte_size(msg))
-        :ok
-      {:error, code} ->
-        [error: "#{__MODULE__} | Unable to send event: #{code}", message: msg]
-    end
+    reply =
+      case :ssl.send(state.socket, msg) do
+        :ok ->
+          Metrics.tls_message_sent(byte_size(msg))
+          :ok
+
+        {:error, code} ->
+          [error: "#{__MODULE__} | Unable to send event: #{code}", message: msg]
+      end
+
     Connection.release(self(), msg)
     {:reply, reply, state}
   end
+
   def handle_call({:send_msg, msg, to}, _from, state) do
-    reply = case :ssl.send(state.socket, msg) do
-      :ok ->
-        Metrics.tls_message_sent(byte_size(msg))
-        :ok
-      {:error, code} ->
-        [error: "#{__MODULE__} | Unable to send event: #{code}", message: msg]
-    end
+    reply =
+      case :ssl.send(state.socket, msg) do
+        :ok ->
+          Metrics.tls_message_sent(byte_size(msg))
+          :ok
+
+        {:error, code} ->
+          [error: "#{__MODULE__} | Unable to send event: #{code}", message: msg]
+      end
+
     Connection.release(self(), msg)
     {:reply, reply, %{state | to: to}}
   end
@@ -91,18 +97,21 @@ defmodule Riemannx.Connections.TLS do
     {:stop, :ssl_closed, %{state | socket: nil}}
   end
 
-  def handle_info({_, _, <<@ok, r :: binary>> = m}, s) when bit_size(r) > 0 do
+  def handle_info({_, _, <<@ok, r::binary>> = m}, s) when bit_size(r) > 0 do
     Kernel.send(s.to, {:ok, Msg.decode(m)})
     {:noreply, %{s | to: nil}}
   end
-  def handle_info({_, _, <<@no, r :: binary>> = m}, s) when bit_size(r) > 0 do
-    Kernel.send(s.to, [error: "Query failed", message: Msg.decode(m)])
+
+  def handle_info({_, _, <<@no, r::binary>> = m}, s) when bit_size(r) > 0 do
+    Kernel.send(s.to, error: "Query failed", message: Msg.decode(m))
     {:noreply, %{s | to: nil}}
   end
+
   def handle_info({_, _, @ok}, %{to: to} = s) when is_pid(to) do
     Kernel.send(s.to, {:ok, []})
     {:noreply, %{s | to: nil}}
   end
+
   def handle_info({:ssl, _socket, _msg}, state), do: {:noreply, state}
 
   def terminate(_reason, state) do
@@ -113,14 +122,14 @@ defmodule Riemannx.Connections.TLS do
   # ===========================================================================
   # Private
   # ===========================================================================
-  defp try_ssl_connect(_state, 0), do: raise "Unable to connect!"
+  defp try_ssl_connect(_state, 0), do: raise("Unable to connect!")
+
   defp try_ssl_connect(state, n) do
-    {:ok, ssl_socket} =
-      :ssl.connect(state.host, state.port, state.options)
+    {:ok, ssl_socket} = :ssl.connect(state.host, state.port, state.options)
     ssl_socket
   rescue
     e in MatchError ->
-      Logger.error("[#{__MODULE__}] Unable to connect: #{inspect e}")
+      Logger.error("[#{__MODULE__}] Unable to connect: #{inspect(e)}")
       :timer.sleep(retry_interval(:tls))
       try_ssl_connect(state, n - 1)
   end

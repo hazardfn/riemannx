@@ -6,8 +6,9 @@ defmodule Riemannx.Errors.InvalidMetricError do
 
     msg = """
     Expected metric to be of type integer, float or nil, but got:
-    #{inspect metric}
+    #{inspect(metric)}
     """
+
     %__MODULE__{message: msg}
   end
 end

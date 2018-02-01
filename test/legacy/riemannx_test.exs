@@ -1,11 +1,15 @@
-defmodule RiemannxTest do
+defmodule RiemannxTest.Legacy.RiemannxTest do
   use ExUnit.Case, async: false
   alias Riemannx.Errors.InvalidMetricError
-  alias Riemannx.Connection
-  alias Riemannx.Settings
-  alias RiemannxTest.Utils
   alias Riemannx.Proto.Event
   alias Riemannx.Proto.Msg
+  alias Riemannx.Connection
+  import Riemannx.Settings
+
+  setup_all do
+    Application.put_env(:riemannx, :settings_module, Riemannx.Settings.Legacy)
+    :ok
+  end
 
   test "Invalid events trigger an error" do
     assert_raise InvalidMetricError, fn ->
@@ -38,14 +42,14 @@ defmodule RiemannxTest do
   end
 
   test "Assigning max priority rasies a runtime error" do
-    Utils.update_setting(:tcp, :priority, :max)
-    assert_raise(RuntimeError, fn -> Settings.priority!(:tcp) end)
-    Utils.update_setting(:tcp, :priority, :normal)
+    Application.put_env(:riemannx, :priority, :max)
+    assert_raise(RuntimeError, fn -> priority!(:tcp) end)
+    Application.put_env(:riemannx, :priority, :normal)
   end
 
   test "Assigning a random priority raises a runtime error" do
-    Utils.update_setting(:tcp, :priority, :random)
-    assert_raise(RuntimeError, fn -> Settings.priority!(:tcp) end)
-    Utils.update_setting(:tcp, :priority, :normal)
+    Application.put_env(:riemannx, :priority, :random)
+    assert_raise(RuntimeError, fn -> priority!(:tcp) end)
+    Application.put_env(:riemannx, :priority, :normal)
   end
 end

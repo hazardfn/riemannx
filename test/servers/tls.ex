@@ -11,10 +11,10 @@ defmodule RiemannxTest.Servers.TLS do
   # Callbacks
   # ===========================================================================
   def start(return_pid) do
-    state         = %{test_pid: return_pid, socket: nil, response: nil}
-    {:ok, server} = GenServer.start(__MODULE__, state, [name: __MODULE__])
-    :ok           = GenServer.call(server, :listen)
-    :ok           = GenServer.cast(server, :accept)
+    state = %{test_pid: return_pid, socket: nil, response: nil}
+    {:ok, server} = GenServer.start(__MODULE__, state, name: __MODULE__)
+    :ok = GenServer.call(server, :listen)
+    :ok = GenServer.cast(server, :accept)
     {:ok, server}
   end
 
@@ -39,16 +39,18 @@ defmodule RiemannxTest.Servers.TLS do
 
   def handle_info({:ssl, _port, msg}, %{response: nil} = state) do
     decoded = Msg.decode(msg)
-    events  = Enum.map(decoded.events, fn(e) -> %{e | time: 0} end)
+    events = Enum.map(decoded.events, fn e -> %{e | time: 0} end)
     decoded = %{decoded | events: events}
-    msg     = Msg.encode(decoded)
+    msg = Msg.encode(decoded)
     send(state.test_pid, {msg, :ssl})
     {:noreply, state}
   end
+
   def handle_info({:ssl, _port, _msg}, %{response: qr} = state) do
     :ssl.send(state.socket, qr)
     {:noreply, %{state | response: nil}}
   end
+
   def handle_info(_msg, state) do
     {:noreply, state}
   end
@@ -66,15 +68,18 @@ defmodule RiemannxTest.Servers.TLS do
     {:ok, socket} = try_listen(port)
     {:reply, :ok, %{state | socket: socket}}
   end
+
   defp try_listen(port) do
-    {:ok, _} = :ssl.listen(port,
-    [:binary,
-     packet: 4,
-     active: true,
-     reuseaddr: true,
-     cacertfile: "test/certs/testca/cacert.pem",
-     certfile: "test/certs/server/cert.pem",
-     keyfile: "test/certs/server/key.pem"])
+    {:ok, _} =
+      :ssl.listen(port, [
+        :binary,
+        packet: 4,
+        active: true,
+        reuseaddr: true,
+        cacertfile: "test/certs/testca/cacert.pem",
+        certfile: "test/certs/server/cert.pem",
+        keyfile: "test/certs/server/key.pem"
+      ])
   rescue
     MatchError ->
       try_listen(port)

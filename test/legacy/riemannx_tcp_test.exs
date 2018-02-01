@@ -1,35 +1,33 @@
-defmodule RiemannxTest.TLS do
+defmodule RiemannxTest.Legacy.TCP do
   use ExUnit.Case, async: false
   use PropCheck
   alias Riemannx.Proto.Msg
-  alias RiemannxTest.Server
-  alias RiemannxTest.Utils
-  alias Riemannx.Connections.TLS, as: Client
+  alias Riemannx.Connections.TCP, as: Client
+  alias RiemannxTest.Legacy.Servers.TCP, as: Server
   alias RiemannxTest.Property.RiemannXPropTest, as: Prop
   alias Riemannx.Proto.Event
+  alias RiemannxTest.Utils
 
   setup_all do
     Application.load(:riemannx)
-    Application.put_env(:riemannx, :type, :tls)
+    Application.put_env(:riemannx, :type, :tcp)
+    Application.put_env(:riemannx, :max_udp_size, 16_384)
+    Application.put_env(:riemannx, :settings_module, Riemannx.Settings.Legacy)
 
-    Utils.update_setting(
-      :tls,
-      :options,
-      keyfile: "test/certs/client/key.pem",
-      certfile: "test/certs/client/cert.pem",
-      server_name_indication: :disable
-    )
+    on_exit(fn ->
+      Application.unload(:riemannx)
+    end)
 
-    Utils.update_setting(:tls, :port, 5554)
+    :ok
   end
 
   setup do
-    {:ok, server} = Server.start(:tls, self())
+    {:ok, server} = Server.start(self())
     Application.ensure_all_started(:riemannx)
-    Utils.update_setting(:tls, :port, 5554)
+    Application.put_env(:riemannx, :max_udp_size, 16_384)
 
     on_exit(fn ->
-      Server.stop(:tls)
+      Server.stop(server)
       Application.stop(:riemannx)
     end)
 
@@ -78,13 +76,13 @@ defmodule RiemannxTest.TLS do
   end
 
   test "Test connection retry raises eventually" do
-    Utils.update_setting(:tls, :retry_count, 1)
-    Utils.update_setting(:tls, :retry_interval, 1)
-    Utils.update_setting(:tls, :port, 5556)
+    Application.put_env(:riemannx, :retry_count, 1)
+    Application.put_env(:riemannx, :retry_interval, 1)
+    Application.put_env(:riemannx, :tcp_port, 5554)
 
     conn = %Riemannx.Connection{
       host: to_charlist("localhost"),
-      port: 5556
+      port: 5554
     }
 
     assert_raise RuntimeError, fn ->
@@ -92,31 +90,29 @@ defmodule RiemannxTest.TLS do
     end
   end
 
-  test "Send failure is captured and returned on sync send", context do
+  test "Send failure is captured and returned on sync send" do
     conn = %Riemannx.Connection{
       host: to_charlist("localhost"),
-      port: 5553,
-      socket: :sys.get_state(context[:server]).socket
+      port: 5554,
+      # :erlang.list_to_port is better but only in 20.
+      socket: Utils.term_to_port("#Port<0.9999>")
     }
 
-    GenServer.call(context[:server], :cleanup)
     refute :ok == Client.handle_call({:send_msg, <<>>}, self(), conn)
   end
 
-  @tag :broke
-  test "Send failure is captured and returned on query", context do
+  test "Send failure is captured and returned on query" do
     conn = %Riemannx.Connection{
       host: to_charlist("localhost"),
-      port: 55,
+      port: 5554,
       # :erlang.list_to_port is better but only in 20.
-      socket: :sys.get_state(context[:server]).socket
+      socket: Utils.term_to_port("#Port<0.9999>")
     }
 
-    GenServer.call(context[:server], :cleanup)
-    refute :ok == Client.handle_call({:send_msg, 'wrong', self()}, self(), conn)
+    refute :ok == Client.handle_call({:send_msg, <<>>, self()}, self(), conn)
   end
 
-  test "Can query events" do
+  test "Can query events", context do
     event = [
       service: "riemannx-elixir",
       metric: 1,
@@ -128,12 +124,29 @@ defmodule RiemannxTest.TLS do
     msg = Msg.new(ok: true, events: event)
     msg = Msg.encode(msg)
 
-    Server.set_response(:tls, msg)
+    Server.set_qr_response(context[:server], msg)
     events = Riemannx.query("test")
     assert events == Event.deconstruct(event)
   end
 
-  test "Errors are handled in query" do
+  test "Can query events w/ charlist", context do
+    event = [
+      service: "riemannx-elixir",
+      metric: 1,
+      attributes: [a: 1],
+      description: "test"
+    ]
+
+    event = Msg.decode(Riemannx.create_events_msg(event)).events
+    msg = Msg.new(ok: true, events: event)
+    msg = Msg.encode(msg)
+
+    Server.set_qr_response(context[:server], msg)
+    events = Riemannx.query('test')
+    assert events == Event.deconstruct(event)
+  end
+
+  test "Errors are handled in query", context do
     event = [
       service: "riemannx-elixir",
       metric: 1,
@@ -145,49 +158,17 @@ defmodule RiemannxTest.TLS do
     msg = Msg.new(ok: false, events: event)
     msg = Msg.encode(msg)
 
-    Server.set_response(:tls, msg)
+    Server.set_qr_response(context[:server], msg)
     events = Riemannx.query("test")
     assert match?([error: _e, message: _msg], events)
   end
 
-  test "Empty queries are handled" do
+  test "Empty queries are handled", context do
     msg = Msg.encode(Msg.new(ok: true))
 
-    Server.set_response(:tls, msg)
+    Server.set_qr_response(context[:server], msg)
     events = Riemannx.query("test")
     assert match?([], events)
-  end
-
-  test "Metrics sent on async send" do
-    event = [
-      service: "riemannx-elixir",
-      metric: 1,
-      attributes: [a: 1],
-      description: "test"
-    ]
-
-    enc_event = Riemannx.create_events_msg(event)
-    size = byte_size(enc_event)
-    Application.put_env(:riemannx, :metrics_module, RiemannxTest.Metrics.Test)
-    Application.put_env(:riemannx, :test_pid, self())
-    Riemannx.send_async(event)
-    assert_receive(^size)
-  end
-
-  test "Metrics sent on sync send" do
-    event = [
-      service: "riemannx-elixir",
-      metric: 1,
-      attributes: [a: 1],
-      description: "test"
-    ]
-
-    enc_event = Riemannx.create_events_msg(event)
-    size = byte_size(enc_event)
-    Application.put_env(:riemannx, :metrics_module, RiemannxTest.Metrics.Test)
-    Application.put_env(:riemannx, :test_pid, self())
-    Riemannx.send(event)
-    assert_receive(^size)
   end
 
   property "All reasonable metrics", [:verbose] do
@@ -213,13 +194,13 @@ defmodule RiemannxTest.TLS do
   end
 
   def assert_events_received(events) do
-    msg = events |> Riemannx.create_events_msg() |> Msg.decode()
+    msg = Msg.decode(Riemannx.create_events_msg(events))
     events = Enum.map(msg.events, fn e -> %{e | time: 0} end)
     msg = %{msg | events: events}
     encoded = Msg.encode(msg)
 
     receive do
-      {^encoded, :ssl} -> true
+      {^encoded, :tcp} -> true
     after
       10_000 -> false
     end
