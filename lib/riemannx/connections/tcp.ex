@@ -28,11 +28,11 @@ defmodule Riemannx.Connections.TCP do
   # ===========================================================================
   # API
   # ===========================================================================
-  def get_worker(_e), do: :poolboy.checkout(pool_name(:tcp), true, :infinity)
-  def send(w, e), do: GenServer.call(w, {:send_msg, e})
-  def send_async(w, e), do: GenServer.cast(w, {:send_msg, e})
-  def query(w, m, t), do: GenServer.call(w, {:send_msg, m, t})
-  def release(w, _e), do: :poolboy.checkin(pool_name(:tcp), w)
+  def get_worker, do: :poolboy.checkout(pool_name(:tcp), true, :infinity)
+  def send(e), do: GenServer.call(get_worker(), {:send_msg, e})
+  def send_async(e), do: GenServer.cast(get_worker(), {:send_msg, e})
+  def query(m, t), do: GenServer.call(get_worker(), {:send_msg, m, t})
+  def release(w), do: :poolboy.checkin(pool_name(:tcp), w)
 
   # ===========================================================================
   # Private
@@ -74,7 +74,7 @@ defmodule Riemannx.Connections.TCP do
   def handle_cast({:send_msg, msg}, state) do
     :ok = :gen_tcp.send(state.socket, msg)
     Metrics.tcp_message_sent(byte_size(msg))
-    Connection.release(self(), msg)
+    release(self())
     {:noreply, state}
   end
 
@@ -83,13 +83,15 @@ defmodule Riemannx.Connections.TCP do
       case :gen_tcp.send(state.socket, msg) do
         :ok ->
           Metrics.tcp_message_sent(byte_size(msg))
+          release(self())
           :ok
 
         {:error, code} ->
-          [error: "#{__MODULE__} | Unable to send event: #{code}", message: msg]
+          e = [error: "#{__MODULE__} | Unable to send event: #{code}", message: msg]
+          send(self(), {:error, e})
+          e
       end
 
-    Connection.release(self(), msg)
     {:reply, reply, state}
   end
 
@@ -98,18 +100,24 @@ defmodule Riemannx.Connections.TCP do
       case :gen_tcp.send(state.socket, msg) do
         :ok ->
           Metrics.tcp_message_sent(byte_size(msg))
+          release(self())
           :ok
 
         {:error, code} ->
-          [error: "#{__MODULE__} | Unable to send event: #{code}", message: msg]
+          e = [error: "#{__MODULE__} | Unable to send event: #{code}", message: msg]
+          send(self(), {:error, e})
+          e
       end
 
-    Connection.release(self(), msg)
     {:reply, reply, %{state | to: to}}
   end
 
+  def handle_info({:error, error}, state) do
+    {:stop, error, state}
+  end
+
   def handle_info({:tcp_closed, _socket}, state) do
-    {:stop, :tcp_closed, %{state | socket: nil}}
+    {:stop, :normal, %{state | socket: nil}}
   end
 
   def handle_info({_, _, <<@ok, r::binary>> = m}, s) when bit_size(r) > 0 do
@@ -128,6 +136,7 @@ defmodule Riemannx.Connections.TCP do
   end
 
   def handle_info({:tcp, _socket, _msg}, state), do: {:noreply, state}
+  def handle_info(_, state), do: {:noreply, state}
 
   def terminate(_reason, state) do
     if state.socket, do: :gen_tcp.close(state.socket)

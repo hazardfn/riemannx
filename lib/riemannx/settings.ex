@@ -19,8 +19,12 @@ defmodule Riemannx.Settings do
   @callback pool_size(t :: conn_type()) :: non_neg_integer()
   @callback strategy(t :: conn_type()) :: :fifo | :lifo
   @callback max_overflow(t :: conn_type()) :: non_neg_integer()
-  @callback type() :: conn_type() | :combined
-  @callback module(conn_type() | :combined) :: module()
+  @callback type() :: conn_type() | :combined | :batch
+  @callback module(conn_type() | :combined | :batch) :: module()
+  @callback batch_module() :: module()
+  @callback batch_type() :: conn_type() | :combined
+  @callback batch_size() :: integer()
+  @callback batch_interval() :: integer()
   @callback metrics_module() :: module()
   @callback host() :: binary()
   @callback port(t :: conn_type()) :: :inet.port_number()
@@ -30,6 +34,7 @@ defmodule Riemannx.Settings do
   @callback options(t :: conn_type()) :: list()
   @callback events_host() :: binary()
   @callback priority!(conn_type()) :: priority() | no_return()
+  @callback micro?() :: boolean()
 
   # ===========================================================================
   # API
@@ -73,11 +78,11 @@ defmodule Riemannx.Settings do
   def max_overflow(t), do: settings_module().max_overflow(t)
 
   @doc """
-  Returns the connection type set (tls, tcp, udp, combined).
+  Returns the connection type set (tls, tcp, udp, combined, batch).
 
   Default: `:combined`
   """
-  @spec type() :: conn_type() | :combined
+  @spec type() :: conn_type() | :combined | :batch
   def type, do: settings_module().type()
 
   @doc """
@@ -101,6 +106,39 @@ defmodule Riemannx.Settings do
   """
   @spec module(conn_type()) :: module()
   def module(t), do: settings_module().module(t)
+
+  @doc """
+  Returns the batch type, similar to `type()` but is used to provide a
+  connection module to the batching wrapper.
+
+  Default: :combined
+  """
+  @spec batch_type() :: conn_type() | :combined
+  def batch_type, do: settings_module().batch_type()
+
+  @doc """
+  Returns the batch module, relevant if using the batching connection.
+
+  Default: Riemannx.Connections.Combined
+  """
+  @spec batch_module() :: module()
+  def batch_module, do: settings_module().batch_module()
+
+  @doc """
+  Returns the batch size.
+
+  Default: 100
+  """
+  @spec batch_size() :: integer()
+  def batch_size, do: settings_module().batch_size()
+
+  @doc """
+  Returns the batch interval.
+
+  Default: {1, :minutes}
+  """
+  @spec batch_interval() :: integer()
+  def batch_interval, do: settings_module().batch_interval()
 
   @doc """
   Returns the riemann host.
@@ -186,4 +224,13 @@ defmodule Riemannx.Settings do
   """
   @spec settings_module() :: module()
   def settings_module, do: get_env(:riemannx, :settings_module, Default)
+
+  @doc """
+  Determines if you want riemannx to use the new time_micros field. Set to
+  false if you are using a version of riemann that does not support this.
+
+  Default: true
+  """
+  @spec micro?() :: boolean()
+  def micro?, do: settings_module().micro?()
 end

@@ -60,12 +60,29 @@ defmodule Riemannx.Proto.Helpers.Event do
   def build(args, mod) do
     args
     |> Enum.into(%{})
-    |> Map.put_new_lazy(:time, fn -> :erlang.system_time(:seconds) end)
+    |> maybe_put_time
     |> Map.put_new_lazy(:host, &Settings.events_host/0)
     |> set_attributes_field
     |> set_metric_pb_fields
     |> Map.to_list()
     |> mod.new()
+  end
+
+  defp maybe_put_time(args) do
+    cond do
+      Map.has_key?(args, :time) ->
+        args
+
+      Map.has_key?(args, :time_micros) ->
+        args
+
+      true ->
+        if Settings.micro?() do
+          Map.put_new_lazy(args, :time_micros, fn -> :erlang.system_time(:micro_seconds) end)
+        else
+          Map.put_new_lazy(args, :time, fn -> :erlang.system_time(:seconds) end)
+        end
+    end
   end
 
   defp set_attributes_field(%{attributes: a} = map) when not is_nil(a) do

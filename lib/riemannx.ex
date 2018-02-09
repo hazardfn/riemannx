@@ -58,7 +58,6 @@ defmodule Riemannx do
   alias Riemannx.Proto.Msg
   alias Riemannx.Proto.Query
   alias Riemannx.Connection, as: Conn
-  import Riemannx.Settings
 
   # ===========================================================================
   # Types
@@ -173,15 +172,7 @@ defmodule Riemannx do
   # Private
   # ===========================================================================
   defp enqueue_query(message, timeout) do
-    result =
-      case type() do
-        type when type in [:tls, :tcp] ->
-          worker = Conn.get_worker(message)
-          if is_pid(worker), do: Conn.query(worker, message, self())
-
-        type when type in [:combined, :udp] ->
-          Conn.query(nil, message, self())
-      end
+    result = Conn.query(message, self())
 
     if result == :ok do
       receive do
@@ -196,25 +187,6 @@ defmodule Riemannx do
     end
   end
 
-  defp enqueue_sync(message) do
-    case Conn.get_worker(message) do
-      worker when is_pid(worker) ->
-        result = Conn.send(worker, message)
-        unless result == :ok, do: GenServer.stop(worker, :unable_to_send)
-        result
-
-      error ->
-        error
-    end
-  end
-
-  defp enqueue(message) do
-    case Conn.get_worker(message) do
-      worker when is_pid(worker) ->
-        Conn.send_async(worker, message)
-
-      _error ->
-        :ok
-    end
-  end
+  defp enqueue_sync(message), do: Conn.send(message)
+  defp enqueue(message), do: Conn.send_async(message)
 end

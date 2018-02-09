@@ -4,7 +4,6 @@ defmodule RiemannxTest.UDP do
   """
   use ExUnit.Case, async: false
   use PropCheck
-  require IEx
   import Riemannx.Settings
   alias Riemannx.Proto.Msg
   alias RiemannxTest.Server
@@ -193,7 +192,7 @@ defmodule RiemannxTest.UDP do
 
   def assert_events_received(events) do
     msg = events |> Riemannx.create_events_msg() |> Msg.decode()
-    events = Enum.map(msg.events, fn e -> %{e | time: 0} end)
+    events = Enum.map(msg.events, fn e -> %{e | time: 0, time_micros: 0} end)
     msg = %{msg | events: events}
     encoded = Msg.encode(msg)
 
