@@ -38,45 +38,32 @@ defmodule Riemannx.Connection do
   # ===========================================================================
   # Callbacks
   # ===========================================================================
-  @callback get_worker(e :: encoded_event()) :: pid() | error()
-  @callback send(w :: pid(), e :: encoded_event()) :: :ok | error()
-  @callback send_async(w :: pid(), e :: encoded_event()) :: :ok
-  @callback query(w :: pid() | nil, m :: query(), t :: pid()) :: :ok | error()
-  @callback release(w :: pid(), e :: encoded_event()) :: :ok
+  @callback send(e :: encoded_event()) :: :ok | error()
+  @callback send_async(e :: encoded_event()) :: :ok
+  @callback query(m :: query(), t :: pid()) :: :ok | error()
 
   # ===========================================================================
   # API
   # ===========================================================================
-  @doc """
-  Fetches a relevant worker based on your connection type.
-  """
-  @spec get_worker(encoded_event()) :: pid() | error()
-  def get_worker(e), do: module().get_worker(e)
 
   @doc """
-  Tells the given worker to synchronously process an event.
+  Synchronously process an event.
   """
-  @spec send(pid(), encoded_event()) :: :ok | error()
-  def send(pid, e), do: module().send(pid, e)
+  @spec send(encoded_event()) :: :ok | error()
+  def send(e), do: module().send(e)
 
   @doc """
   Tells the given worker to asynchronously process an event.
   """
-  @spec send_async(pid(), encoded_event()) :: :ok
-  def send_async(pid, e), do: module().send_async(pid, e)
+  @spec send_async(encoded_event()) :: :ok
+  def send_async(e), do: module().send_async(e)
 
   @doc """
   Query the index of the riemann server, only works with the TLS/TCP/Combined
   setups. UDP is NOT supported.
   """
-  @spec query(pid() | nil, query(), pid()) :: :ok | error()
-  def query(pid, m, to), do: module().query(pid, m, to)
-
-  @doc """
-  Tells the given worker to release itself back into the wild.
-  """
-  @spec release(pid(), encoded_event()) :: :ok
-  def release(pid, e), do: module().release(pid, e)
+  @spec query(query(), pid()) :: :ok | error()
+  def query(m, to), do: module().query(m, to)
 
   @doc """
   An acceptable query response.

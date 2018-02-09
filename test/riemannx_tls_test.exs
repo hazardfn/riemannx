@@ -103,7 +103,6 @@ defmodule RiemannxTest.TLS do
     refute :ok == Client.handle_call({:send_msg, <<>>}, self(), conn)
   end
 
-  @tag :broke
   test "Send failure is captured and returned on query", context do
     conn = %Riemannx.Connection{
       host: to_charlist("localhost"),
@@ -171,7 +170,7 @@ defmodule RiemannxTest.TLS do
     Application.put_env(:riemannx, :metrics_module, RiemannxTest.Metrics.Test)
     Application.put_env(:riemannx, :test_pid, self())
     Riemannx.send_async(event)
-    assert_receive(^size)
+    assert_receive(^size, 2000)
   end
 
   test "Metrics sent on sync send" do
@@ -214,7 +213,7 @@ defmodule RiemannxTest.TLS do
 
   def assert_events_received(events) do
     msg = events |> Riemannx.create_events_msg() |> Msg.decode()
-    events = Enum.map(msg.events, fn e -> %{e | time: 0} end)
+    events = Enum.map(msg.events, fn e -> %{e | time: 0, time_micros: 0} end)
     msg = %{msg | events: events}
     encoded = Msg.encode(msg)
 

@@ -48,4 +48,24 @@ defmodule RiemannxTest do
     assert_raise(RuntimeError, fn -> Settings.priority!(:tcp) end)
     Utils.update_setting(:tcp, :priority, :normal)
   end
+
+  test "Setting incompatible types causes an error" do
+    Application.load(:riemannx)
+    Application.put_env(:riemannx, :type, :batch)
+    Utils.update_batch_setting(:type, :batch)
+    Application.stop(:riemannx)
+    {:error, {_, {_, {_, {_, {e, _}}}}}} = Application.ensure_all_started(:riemannx)
+    assert e.message =~ "not supported"
+  end
+
+  test "Interval returns correct values" do
+    Utils.update_batch_setting(:interval, {1, :seconds})
+    assert Settings.batch_interval() == 1000
+
+    Utils.update_batch_setting(:interval, {1, :milliseconds})
+    assert Settings.batch_interval() == 1
+
+    Utils.update_batch_setting(:interval, {1, :minutes})
+    assert Settings.batch_interval() == 60_000
+  end
 end

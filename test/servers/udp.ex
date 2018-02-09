@@ -36,7 +36,7 @@ defmodule RiemannxTest.Servers.UDP do
 
   def handle_info({:udp, _, _, _, msg}, state) do
     decoded = Msg.decode(msg)
-    events = Enum.map(decoded.events, fn e -> %{e | time: 0} end)
+    events = Enum.map(decoded.events, fn e -> %{e | time: 0, time_micros: 0} end)
     decoded = %{decoded | events: events}
     msg = Msg.encode(decoded)
     send(state.test_pid, {msg, :udp})

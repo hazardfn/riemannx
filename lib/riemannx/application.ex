@@ -1,7 +1,7 @@
 defmodule Riemannx.Application do
   @moduledoc false
+  alias Riemannx.Connections.Batch
   import Riemannx.Settings
-  alias Riemannx.Settings.Legacy
   require Logger
   use Application
 
@@ -9,27 +9,26 @@ defmodule Riemannx.Application do
   # Application API
   # ===========================================================================
   def start(_type, _args) do
-    type = type()
-    children = if type == :combined, do: combined_pool(), else: single_pool(type)
-    if type == :tls, do: :ssl.start()
+    type = {type(), batch_type()}
+
+    children =
+      case type do
+        {:batch, t} when t in [:combined, :tcp, :udp, :tls] ->
+          Batch.start_link([])
+          if t == :combined, do: combined_pool(), else: single_pool(t)
+
+        {t, _} when t in [:combined, :tcp, :udp, :tls] ->
+          if t == :combined, do: combined_pool(), else: single_pool(t)
+
+        t ->
+          raise("Type combination not supported #{inspect(t)}")
+      end
 
     opts = [
       strategy: :one_for_one,
       name: Riemannx.Supervisor,
       shutdown: :infinity
     ]
-
-    if settings_module() == Legacy do
-      Logger.warn("""
-
-      Riemannx
-      ==========
-      You are using a DEPRECATED settings module, please upgrade!
-
-      The legacy module will be removed in the next release and won't support
-      new features.
-      """)
-    end
 
     Supervisor.start_link(children, opts)
   end

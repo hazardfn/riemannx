@@ -144,7 +144,7 @@ defmodule RiemannxTest.Combined do
   def assert_events_received(events) do
     orig = Riemannx.create_events_msg(events)
     msg = Msg.decode(orig)
-    events = Enum.map(msg.events, fn e -> %{e | time: 0} end)
+    events = Enum.map(msg.events, fn e -> %{e | time: 0, time_micros: 0} end)
     msg = %{msg | events: events}
     encoded = Msg.encode(msg)
 
@@ -164,7 +164,7 @@ defmodule RiemannxTest.Combined do
 
   def assert_events_received(events, x) do
     msg = events |> Riemannx.create_events_msg() |> Msg.decode()
-    events = Enum.map(msg.events, fn e -> %{e | time: 0} end)
+    events = Enum.map(msg.events, fn e -> %{e | time: 0, time_micros: 0} end)
     msg = %{msg | events: events}
     encoded = Msg.encode(msg)
 

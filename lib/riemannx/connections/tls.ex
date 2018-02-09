@@ -28,11 +28,11 @@ defmodule Riemannx.Connections.TLS do
   # ===========================================================================
   # API
   # ===========================================================================
-  def get_worker(_e), do: :poolboy.checkout(pool_name(:tls), true, :infinity)
-  def send(w, e), do: GenServer.call(w, {:send_msg, e})
-  def send_async(w, e), do: GenServer.cast(w, {:send_msg, e})
-  def query(w, m, t), do: GenServer.call(w, {:send_msg, m, t})
-  def release(w, _e), do: :poolboy.checkin(pool_name(:tls), w)
+  def get_worker, do: :poolboy.checkout(pool_name(:tls), true, :infinity)
+  def send(e), do: GenServer.call(get_worker(), {:send_msg, e})
+  def send_async(e), do: GenServer.cast(get_worker(), {:send_msg, e})
+  def query(m, t), do: GenServer.call(get_worker(), {:send_msg, m, t})
+  def release(w), do: :poolboy.checkin(pool_name(:tls), w)
 
   # ===========================================================================
   # GenServer Callbacks
@@ -59,7 +59,7 @@ defmodule Riemannx.Connections.TLS do
   def handle_cast({:send_msg, msg}, state) do
     :ok = :ssl.send(state.socket, msg)
     Metrics.tls_message_sent(byte_size(msg))
-    Connection.release(self(), msg)
+    release(self())
     {:noreply, state}
   end
 
@@ -68,13 +68,15 @@ defmodule Riemannx.Connections.TLS do
       case :ssl.send(state.socket, msg) do
         :ok ->
           Metrics.tls_message_sent(byte_size(msg))
+          release(self())
           :ok
 
         {:error, code} ->
-          [error: "#{__MODULE__} | Unable to send event: #{code}", message: msg]
+          e = [error: "#{__MODULE__} | Unable to send event: #{code}", message: msg]
+          send(self(), {:error, e})
+          e
       end
 
-    Connection.release(self(), msg)
     {:reply, reply, state}
   end
 
@@ -83,18 +85,24 @@ defmodule Riemannx.Connections.TLS do
       case :ssl.send(state.socket, msg) do
         :ok ->
           Metrics.tls_message_sent(byte_size(msg))
+          release(self())
           :ok
 
         {:error, code} ->
-          [error: "#{__MODULE__} | Unable to send event: #{code}", message: msg]
+          e = [error: "#{__MODULE__} | Unable to send event: #{code}", message: msg]
+          send(self(), {:error, e})
+          e
       end
 
-    Connection.release(self(), msg)
     {:reply, reply, %{state | to: to}}
   end
 
+  def handle_info({:error, error}, state) do
+    {:stop, error, state}
+  end
+
   def handle_info({:ssl_closed, _socket}, state) do
-    {:stop, :ssl_closed, %{state | socket: nil}}
+    {:stop, :normal, %{state | socket: nil}}
   end
 
   def handle_info({_, _, <<@ok, r::binary>> = m}, s) when bit_size(r) > 0 do
