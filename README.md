@@ -9,7 +9,7 @@
 
 ## TL;DR
 
-Riemannx is a riemann client built in elixir, currently it's the only client in elixir that supports UDP and TLS (as well as TCP).
+Riemannx is a riemann client built in elixir, currently it's the only client in elixir that supports UDP and TLS (as well as TCP). There is also a batching mode you can use that works with any of the transports.
 
 It has an experimental combined option that makes the best of both TCP and UDP - in the combined mode UDP is the favoured approach but if the message size exceeds the max udp size set TCP will be used.
 
@@ -17,7 +17,7 @@ It has an experimental combined option that makes the best of both TCP and UDP -
 * As of 2.2.0 You can now query the index.
 * As of 2.3.0 You can specify a host in config or we will work one out for you.
 * As of 2.4.0 You can set a priority for the workers.
-* As of 3.0.0 configuration entries are separate for the different connection types (see: [Migrating to 3.0+](#migrate-3.0))
+* As of 3.0.0 configuration entries are separate for the different connection types (see: [Migrating to 3.0+](#migrate-3.0)) - in all 3.x versions there is a legacy settings backend if you want to upgrade without breaking your previous setup.
 * As of 4.0.0 combined batching is the default connection type and the legacy config is removed (see: [Batching](#batching))
 
 ## Contents
@@ -103,6 +103,7 @@ config :riemannx, [
   metrics_module: Riemannx.Metrics.Default # The backend used for sending metrics
   use_micro: true # Set to false if you use a riemann version before 0.2.13
   batch_settings: [
+    type: :combined # The underlying connection to use when using batching.
     size: 50, # The size of batches to send to riemann.
     interval: {1, :seconds} # The interval at which to send batches.
   ]
@@ -236,16 +237,65 @@ This section contains some notes on the behaviour of riemannx that may interest 
 
 ### Batching<a name="batching"></a>
 
-Batching as of 4.0.0 is the default connection behaviour - the default batch size is 50 and the interval is every 1 second. Batching
-works like so:
+Batching as of 4.0.0 is the default connection behaviour - the default batch size is 50 and the interval is every 1 second. Batching works like so:
 
 * Whatever is in the queue will be sent every interval.
 
 * If the size of the queue reaches the set batch size it will be flushed regardless of interval.
 
+There is a new type called `:batch` and a settings key called `batch_settings:`, inside batch_settings you can specify a type for the underlying connection (`:tcp`, `:udp`, `:combined`, `:tls`). As always combined is the default.
+
 ### Micro Time<a name="micro-time"></a>
 
-From version `0.2.13` of riemann it was possible to set time in microseconds - Riemannx now supports and uses the `time_micros` field as default (unless you have set the time or time_micros field yourself, riemannx won't overwrite that). If you are using an older version of riemann you can set the `use_micros` settings key to `false`.
+From version `0.2.13` of riemann it was possible to set time in microseconds - Riemannx now supports and uses the `time_micros` field as default (unless you have set the time or time_micros field yourself, riemannx won't overwrite that). If you are using an older version of riemann you can set the `use_micro` settings key to `false`.
+
+There is a test to make sure your time isn't overwritten and it also explains the behaviour of `use_micro`. Here is an example:
+
+```elixir
+    ## Default is use_micro: true
+    event = [
+      service: "riemannx-elixir",
+      metric: 1,
+      attributes: [a: 1, keep_time: true],
+      description: "test"
+    ]
+
+    time_from_event =
+      event
+      |> Event.list_to_events()
+      |> hd()
+      |> Map.get(:time)
+
+    micro_from_event =
+      event
+      |> Event.list_to_events()
+      |> hd()
+      |> Map.get(:time_micros)
+
+    assert time_from_event == nil
+    assert is_integer(micro_from_event)
+
+    Application.put_env(:riemannx, :use_micro, false)
+
+    time_from_event =
+      event
+      |> Event.list_to_events()
+      |> hd()
+      |> Map.get(:time)
+
+    micro_from_event =
+      event
+      |> Event.list_to_events()
+      |> hd()
+      |> Map.get(:time_micros)
+
+    assert is_integer(time_from_event)
+    assert micro_from_event == nil
+
+    Application.put_env(:riemannx, :use_micro, true)
+```
+
+> NOTE: If you set both time and time_micros riemann will prioritise the micro time and riemannx will overwrite neither.
 
 ### Host Injection<a name="host-inj"></a>
 
@@ -279,6 +329,8 @@ You can see this new layout here: [Config](#config)
 
 If you want to store your settings elsewhere you can create a backend to read settings from a database for example. Look at the default settings module for the required callbacks.
 
+This can be useful if you want to store company-wide settings in one place.
+
 > Feel free to open an issue if you have questions.
 
 ### Metrics Backend<a name="metrics-backend"></a>
@@ -288,7 +340,6 @@ Riemannx supports sending basic metrics, you can create a custom module to suppo
 * `udp_message_sent(size)` - informs when a udp message is sent and gives the size of the message.
 * `tcp_message_sent(size)` - informs when a tcp message is sent and gives the size of the message.
 * `tls_message_sent(size)` - informs when a tls message is sent and gives the size of the message.
-
 
 ## 5. Contributions<a name="contribute"></a>
 
@@ -304,7 +355,7 @@ This repository uses the [Gitflow](https://www.atlassian.com/git/tutorials/compa
   - `mix coveralls.html` (Aim for 100%)
   - `mix dialyzer` (Takes a while and I appreciate you can't test all erlang/elixir versions)
 
-* I consider this client feature complete and fully compatible with 0.2.x versions of Riemann, if your PR adds something only 0.x.x can handle I'd appreciate a heads up.
+* I consider this client feature complete, if your PR breaks backwards compatibility completely or changes pre-existing behaviour/defaults I'd appreciate a heads up and your justifications :).
 
 ## 6. Acknowledgements<a name="ack"></a>
 
