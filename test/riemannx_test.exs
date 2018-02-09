@@ -100,6 +100,7 @@ defmodule RiemannxTest do
 
   @tag :time
   test "Micro-time is used if set to true, time is set otherwise" do
+    ## Default is use_micro: true
     event = [
       service: "riemannx-elixir",
       metric: 1,

@@ -2,7 +2,7 @@ defmodule Riemannx do
   @moduledoc """
   Riemannx is a riemann client that supports UDP/TCP/TLS sockets and also supports
   a hybrid connection where smaller packets are sent via UDP and the rest over
-  TCP.
+  TCP. All connection types can also have a batching layer added over the top.
 
   ## Examples
 
@@ -14,7 +14,15 @@ defmodule Riemannx do
   config :riemannx, [
     host: "localhost", # The riemann server
     event_host: "my_app", # You can override the host name sent to riemann if you want (see: Host Injection)
-    type: :combined, # The type of connection you want to run (:tcp, :udp, :tls or :combined)
+    type: :batch, # The type of connection you want to run (:tcp, :udp, :tls, :combined, :batch)
+    settings_module: Riemannx.Settings.Default # The backend used for reading settings back
+    metrics_module: Riemannx.Metrics.Default # The backend used for sending metrics
+    use_micro: true # Set to false if you use a riemann version before 0.2.13
+    batch_settings: [
+      type: :combined # The underlying connection to use when using batching.
+      size: 50, # The size of batches to send to riemann.
+      interval: {1, :seconds} # The interval at which to send batches.
+    ]
     tcp: [
       port: 5555,
       retry_count: 5, # How many times to re-attempt a TCP connection
