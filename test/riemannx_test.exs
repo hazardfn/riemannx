@@ -55,6 +55,8 @@ defmodule RiemannxTest do
     Utils.update_batch_setting(:type, :batch)
     Application.stop(:riemannx)
     {:error, {_, {_, {_, {_, {e, _}}}}}} = Application.ensure_all_started(:riemannx)
+    Utils.update_batch_setting(:type, :combined)
+    Application.ensure_all_started(:riemannx)
     assert e.message =~ "not supported"
   end
 
