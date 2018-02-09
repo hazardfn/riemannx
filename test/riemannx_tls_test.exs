@@ -7,6 +7,7 @@ defmodule RiemannxTest.TLS do
   alias Riemannx.Connections.TLS, as: Client
   alias RiemannxTest.Property.RiemannXPropTest, as: Prop
   alias Riemannx.Proto.Event
+  import Riemannx.Settings
 
   setup_all do
     Application.load(:riemannx)
@@ -113,6 +114,22 @@ defmodule RiemannxTest.TLS do
 
     GenServer.call(context[:server], :cleanup)
     refute :ok == Client.handle_call({:send_msg, 'wrong', self()}, self(), conn)
+  end
+
+  test "sync message to a dead server causes an error" do
+    event = [
+      service: "riemannx-elixir",
+      metric: 1,
+      attributes: [a: 1],
+      description: "test"
+    ]
+
+    :poolboy.transaction(pool_name(:tls), fn pid ->
+      socket = :sys.get_state(pid).socket
+      :ssl.close(socket)
+    end)
+
+    refute :ok == Riemannx.send(event)
   end
 
   test "Can query events" do

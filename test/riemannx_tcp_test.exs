@@ -8,6 +8,7 @@ defmodule RiemannxTest.TCP do
   alias RiemannxTest.Property.RiemannXPropTest, as: Prop
   alias Riemannx.Proto.Event
   alias Riemannx.Connection
+  import Riemannx.Settings
 
   setup_all do
     Application.load(:riemannx)
@@ -87,6 +88,22 @@ defmodule RiemannxTest.TCP do
     assert_raise RuntimeError, fn ->
       Client.handle_cast(:init, conn)
     end
+  end
+
+  test "sync message to a dead server causes an error" do
+    event = [
+      service: "riemannx-elixir",
+      metric: 1,
+      attributes: [a: 1],
+      description: "test"
+    ]
+
+    :poolboy.transaction(pool_name(:tcp), fn pid ->
+      socket = :sys.get_state(pid).socket
+      :gen_tcp.close(socket)
+    end)
+
+    refute :ok == Riemannx.send(event)
   end
 
   test "Send failure is captured and returned on sync send" do

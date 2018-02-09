@@ -136,6 +136,7 @@ defmodule Riemannx.Connections.TCP do
   end
 
   def handle_info({:tcp, _socket, _msg}, state), do: {:noreply, state}
+  def handle_info(_, state), do: {:noreply, state}
 
   def terminate(_reason, state) do
     if state.socket, do: :gen_tcp.close(state.socket)

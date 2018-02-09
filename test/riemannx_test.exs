@@ -68,4 +68,77 @@ defmodule RiemannxTest do
     Utils.update_batch_setting(:interval, {1, :minutes})
     assert Settings.batch_interval() == 60_000
   end
+
+  test "Time is not overwritten if set" do
+    event = [
+      service: "riemannx-elixir",
+      metric: 1,
+      attributes: [a: 1, keep_time: true],
+      description: "test"
+    ]
+
+    time = :erlang.system_time(:seconds)
+    micro_time = :erlang.system_time(:micro_seconds)
+    event_time = Keyword.put(event, :time, time)
+    event_micro = Keyword.put(event, :time_micros, micro_time)
+
+    time_from_event =
+      event_time
+      |> Event.list_to_events()
+      |> hd()
+      |> Map.get(:time)
+
+    m_time_from_event =
+      event_micro
+      |> Event.list_to_events()
+      |> hd()
+      |> Map.get(:time_micros)
+
+    assert time_from_event == time
+    assert m_time_from_event == micro_time
+  end
+
+  @tag :time
+  test "Micro-time is used if set to true, time is set otherwise" do
+    event = [
+      service: "riemannx-elixir",
+      metric: 1,
+      attributes: [a: 1, keep_time: true],
+      description: "test"
+    ]
+
+    time_from_event =
+      event
+      |> Event.list_to_events()
+      |> hd()
+      |> Map.get(:time)
+
+    micro_from_event =
+      event
+      |> Event.list_to_events()
+      |> hd()
+      |> Map.get(:time_micros)
+
+    assert time_from_event == nil
+    assert is_integer(micro_from_event)
+
+    Application.put_env(:riemannx, :use_micro, false)
+
+    time_from_event =
+      event
+      |> Event.list_to_events()
+      |> hd()
+      |> Map.get(:time)
+
+    micro_from_event =
+      event
+      |> Event.list_to_events()
+      |> hd()
+      |> Map.get(:time_micros)
+
+    assert is_integer(time_from_event)
+    assert micro_from_event == nil
+
+    Application.put_env(:riemannx, :use_micro, true)
+  end
 end
