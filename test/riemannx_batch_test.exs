@@ -1,30 +1,34 @@
-defmodule RiemannxTest.Legacy.Combined do
+defmodule RiemannxTest.Batch do
   use ExUnit.Case, async: false
   use PropCheck
   import Riemannx.Settings
   alias Riemannx.Proto.Msg
+  alias RiemannxTest.Utils
+  alias RiemannxTest.Server
+  alias Riemannx.Connections.Batch
   alias RiemannxTest.Property.RiemannXPropTest, as: Prop
-  alias RiemannxTest.Legacy.Servers.TCP
-  alias RiemannxTest.Legacy.Servers.UDP
   alias Riemannx.Proto.Event
+  require IEx
 
   setup_all do
     Application.load(:riemannx)
-    Application.put_env(:riemannx, :type, :combined)
-    Application.put_env(:riemannx, :max_udp_size, 16_384)
-    Application.put_env(:riemannx, :settings_module, Riemannx.Settings.Legacy)
+    Application.put_env(:riemannx, :type, :batch)
     :ok
   end
 
   setup do
-    {:ok, tcp_server} = TCP.start(self())
-    {:ok, udp_server} = UDP.start(self())
+    Utils.update_setting(:udp, :max_size, 16_384)
+    Utils.update_setting(:udp, :port, 5555)
+    Utils.update_setting(:tcp, :port, 5555)
+    Utils.update_batch_setting(:size, 100)
+    Utils.update_batch_setting(:interval, {100, :milliseconds})
+    {:ok, tcp_server} = Server.start(:tcp, self())
+    {:ok, udp_server} = Server.start(:udp, self())
     Application.ensure_all_started(:riemannx)
-    Application.put_env(:riemannx, :max_udp_size, 16_384)
 
     on_exit(fn ->
-      TCP.stop(tcp_server)
-      UDP.stop(udp_server)
+      Server.stop(:tcp)
+      Server.stop(:udp)
       Application.stop(:riemannx)
     end)
 
@@ -97,13 +101,12 @@ defmodule RiemannxTest.Legacy.Combined do
       ]
     ]
 
-    Application.put_env(:riemannx, :max_udp_size, 1)
+    Utils.update_setting(:udp, :max_size, 1)
     Riemannx.send_async(events)
     assert_events_received(events, :tcp)
-    Application.put_env(:riemannx, :max_udp_size, 16_384)
   end
 
-  test "Queries are forwarded via TCP", context do
+  test "Queries are forwarded via TCP" do
     event = [
       service: "riemannx-elixir",
       metric: 1,
@@ -115,9 +118,56 @@ defmodule RiemannxTest.Legacy.Combined do
     msg = Msg.new(ok: true, events: event)
     msg = Msg.encode(msg)
 
-    TCP.set_qr_response(context[:tcp_server], msg)
+    Server.set_response(:tcp, msg)
     events = Riemannx.query("test")
     assert events == Event.deconstruct(event)
+  end
+
+  test "Batching with a high interval won't send unless the size is exceeded" do
+    event = [
+      service: "riemannx-elixir",
+      metric: 1,
+      attributes: [a: 1],
+      description: "test"
+    ]
+
+    Utils.update_batch_setting(:size, 10)
+    Utils.update_batch_setting(:interval, {60, :minutes})
+    GenServer.stop(Batch)
+    Batch.start_link([])
+
+    Enum.each(1..9, fn _ ->
+      Riemannx.send_async(event)
+    end)
+
+    refute assert_events_received(event, 5000)
+    Riemannx.send_async(event)
+
+    Enum.each(1..10, fn _ ->
+      assert assert_events_received(event)
+    end)
+  end
+
+  test "Batching will still send events at the right interval even if the size is not reached" do
+    event = [
+      service: "riemannx-elixir",
+      metric: 1,
+      attributes: [a: 1],
+      description: "test"
+    ]
+
+    Utils.update_batch_setting(:size, 10)
+    Utils.update_batch_setting(:interval, {500, :milliseconds})
+    GenServer.stop(Batch)
+    Batch.start_link([])
+
+    Enum.each(1..9, fn _ ->
+      Riemannx.send_async(event)
+    end)
+
+    Enum.each(1..9, fn _ ->
+      assert assert_events_received(event, 1000)
+    end)
   end
 
   property "All reasonable metrics async", [:verbose] do
@@ -142,10 +192,21 @@ defmodule RiemannxTest.Legacy.Combined do
     )
   end
 
-  def assert_events_received(events) do
+  def refute_events_received do
+    receive do
+      {<<>>, :udp} -> refute_events_received()
+      {_, :udp} -> false
+    after
+      1100 -> true
+    end
+  end
+
+  def assert_events_received(events, timeout \\ 10_000)
+
+  def assert_events_received(events, timeout) when is_integer(timeout) do
     orig = Riemannx.create_events_msg(events)
     msg = Msg.decode(orig)
-    events = Enum.map(msg.events, fn e -> %{e | time: 0} end)
+    events = Enum.map(msg.events, fn e -> %{e | time: 0, time_micros: 0} end)
     msg = %{msg | events: events}
     encoded = Msg.encode(msg)
 
@@ -159,13 +220,13 @@ defmodule RiemannxTest.Legacy.Combined do
           true
         end
     after
-      10_000 -> false
+      timeout -> false
     end
   end
 
-  def assert_events_received(events, x) do
+  def assert_events_received(events, x) when is_atom(x) do
     msg = events |> Riemannx.create_events_msg() |> Msg.decode()
-    events = Enum.map(msg.events, fn e -> %{e | time: 0} end)
+    events = Enum.map(msg.events, fn e -> %{e | time: 0, time_micros: 0} end)
     msg = %{msg | events: events}
     encoded = Msg.encode(msg)
 

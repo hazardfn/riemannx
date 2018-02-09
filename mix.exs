@@ -1,7 +1,7 @@
 defmodule Riemannx.Mixfile do
   use Mix.Project
 
-  @version "3.1.1"
+  @version "4.0.0"
 
   def project do
     [
@@ -23,7 +23,7 @@ defmodule Riemannx.Mixfile do
       dialyzer:
         [
           ignore_warnings: "./dialyzer.ignore-warnings",
-          plt_add_apps: [:ssl, :stdlib, :public_key]
+          plt_add_apps: [:ssl, :stdlib, :public_key, :qex]
         ] ++ dialyzer(),
       docs: [
         main: "Riemannx",
@@ -37,6 +37,7 @@ defmodule Riemannx.Mixfile do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
+      included_applications: [:qex],
       applications: applications(Mix.env()),
       mod: {Riemannx.Application, []}
     ]
@@ -61,7 +62,8 @@ defmodule Riemannx.Mixfile do
       {:ex_doc, "~> 0.12", only: [:dev], runtime: false},
       {:propcheck, "~> 1.0.4", only: :test},
       {:dialyxir, "~> 0.5", only: [:dev, :test], runtime: false},
-      {:credo, "~> 0.9.0-rc2", only: [:dev, :test], runtime: false}
+      {:credo, "~> 0.9.0-rc2", only: [:dev, :test], runtime: false},
+      {:qex, "~> 0.3.4"}
     ]
   end
 

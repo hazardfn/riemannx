@@ -33,18 +33,34 @@ defmodule Riemannx.Settings.Default do
   @spec max_overflow(conn_type()) :: non_neg_integer()
   def max_overflow(t) when t in @types, do: extract(t, :max_overflow, 2)
 
-  @spec type() :: :tcp | :udp | :tls | :combined
-  def type, do: get_env(:riemannx, :type, :combined)
+  @spec type() :: :tcp | :udp | :tls | :combined | :batch
+  def type, do: get_env(:riemannx, :type, :batch)
 
-  @spec module(conn_type() | :combined) :: module()
+  @spec module(conn_type() | :combined | :batch) :: module()
   def module(t) do
     case t do
       :tcp -> Riemannx.Connections.TCP
       :udp -> Riemannx.Connections.UDP
       :tls -> Riemannx.Connections.TLS
       :combined -> Riemannx.Connections.Combined
+      :batch -> Riemannx.Connections.Batch
     end
   end
+
+  @spec batch_type() :: conn_type() | :combined
+  def batch_type, do: extract_batch(:type, :combined)
+
+  @spec batch_module() :: module()
+  def batch_module, do: batch_type() |> module()
+
+  @spec batch_size() :: integer()
+  def batch_size, do: extract_batch(:size, 100)
+
+  @spec batch_interval() :: integer()
+  def batch_interval, do: interval(extract_batch(:interval, {10, :seconds}))
+  defp interval({x, :minutes}), do: interval({x * 60, :seconds})
+  defp interval({x, :seconds}), do: x * 1000
+  defp interval({x, :milliseconds}), do: x
 
   @spec metrics_module() :: module()
   def metrics_module, do: get_env(:riemannx, :metrics_module, Default)
@@ -64,6 +80,7 @@ defmodule Riemannx.Settings.Default do
   @spec retry_interval(conn_type()) :: non_neg_integer()
   def retry_interval(t), do: extract(t, :retry_interval, 5000)
 
+  @spec options(conn_type()) :: list()
   def options(:tls),
     do: extract(:tls, :options, []) ++ [:binary, nodelay: true, packet: 4, active: true]
 
@@ -101,6 +118,9 @@ defmodule Riemannx.Settings.Default do
     end
   end
 
+  @spec micro?() :: boolean()
+  def micro?, do: get_env(:riemannx, :use_micro, true)
+
   # ===========================================================================
   # Private
   # ===========================================================================
@@ -111,5 +131,10 @@ defmodule Riemannx.Settings.Default do
   defp extract(t, opt, default) do
     kw = get_env(:riemannx, t, [])
     Keyword.get(kw, opt, default)
+  end
+
+  defp extract_batch(opt, default) do
+    batch_settings = get_env(:riemannx, :batch_settings, [])
+    Keyword.get(batch_settings, opt, default)
   end
 end

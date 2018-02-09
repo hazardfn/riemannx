@@ -24,4 +24,10 @@ defmodule RiemannxTest.Utils do
     new_kw = Keyword.put(opts, opt, value)
     Application.put_env(:riemannx, type, new_kw)
   end
+
+  def update_batch_setting(opt, value) do
+    opts = Application.get_env(:riemannx, :batch_settings, [])
+    new_kw = Keyword.put(opts, opt, value)
+    Application.put_env(:riemannx, :batch_settings, new_kw)
+  end
 end

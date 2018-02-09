@@ -7,6 +7,7 @@ defmodule RiemannxTest.TLS do
   alias Riemannx.Connections.TLS, as: Client
   alias RiemannxTest.Property.RiemannXPropTest, as: Prop
   alias Riemannx.Proto.Event
+  import Riemannx.Settings
 
   setup_all do
     Application.load(:riemannx)
@@ -103,7 +104,6 @@ defmodule RiemannxTest.TLS do
     refute :ok == Client.handle_call({:send_msg, <<>>}, self(), conn)
   end
 
-  @tag :broke
   test "Send failure is captured and returned on query", context do
     conn = %Riemannx.Connection{
       host: to_charlist("localhost"),
@@ -114,6 +114,22 @@ defmodule RiemannxTest.TLS do
 
     GenServer.call(context[:server], :cleanup)
     refute :ok == Client.handle_call({:send_msg, 'wrong', self()}, self(), conn)
+  end
+
+  test "sync message to a dead server causes an error" do
+    event = [
+      service: "riemannx-elixir",
+      metric: 1,
+      attributes: [a: 1],
+      description: "test"
+    ]
+
+    :poolboy.transaction(pool_name(:tls), fn pid ->
+      socket = :sys.get_state(pid).socket
+      :ssl.close(socket)
+    end)
+
+    refute :ok == Riemannx.send(event)
   end
 
   test "Can query events" do
@@ -171,7 +187,7 @@ defmodule RiemannxTest.TLS do
     Application.put_env(:riemannx, :metrics_module, RiemannxTest.Metrics.Test)
     Application.put_env(:riemannx, :test_pid, self())
     Riemannx.send_async(event)
-    assert_receive(^size)
+    assert_receive(^size, 2000)
   end
 
   test "Metrics sent on sync send" do
@@ -214,7 +230,7 @@ defmodule RiemannxTest.TLS do
 
   def assert_events_received(events) do
     msg = events |> Riemannx.create_events_msg() |> Msg.decode()
-    events = Enum.map(msg.events, fn e -> %{e | time: 0} end)
+    events = Enum.map(msg.events, fn e -> %{e | time: 0, time_micros: 0} end)
     msg = %{msg | events: events}
     encoded = Msg.encode(msg)
 
