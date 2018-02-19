@@ -28,6 +28,7 @@ defmodule Riemannx.Connections.Batch do
   ```
   """
   alias Riemannx.Connections.Batch
+  alias Riemannx.Proto.Msg
   import Riemannx.Settings
   use GenServer
   @behaviour Riemannx.Connection
@@ -63,9 +64,14 @@ defmodule Riemannx.Connections.Batch do
   # Private
   # ===========================================================================
   defp flush(items) when is_list(items) do
-    Enum.each(items, fn item ->
-      Batch.send(item)
+    batch = Enum.flat_map(items, fn(item) ->
+      item
     end)
+
+    [events: batch]
+    |> Msg.new()
+    |> Msg.encode()
+    |> Batch.send()
 
     Process.send_after(self(), :flush, batch_interval())
   end
