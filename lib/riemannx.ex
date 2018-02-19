@@ -65,6 +65,7 @@ defmodule Riemannx do
   alias Riemannx.Proto.Event
   alias Riemannx.Proto.Msg
   alias Riemannx.Proto.Query
+  alias Riemannx.Settings
   alias Riemannx.Connection, as: Conn
 
   # ===========================================================================
@@ -124,9 +125,15 @@ defmodule Riemannx do
   """
   @spec send_async(events()) :: :ok
   def send_async(events) do
-    events
-    |> create_events_msg()
-    |> enqueue()
+    if Settings.type() == :batch do
+      events = Event.list_to_events(events)
+      events
+      |> enqueue()
+    else
+      events
+      |> create_events_msg()
+      |> enqueue()
+    end
   end
 
   @doc """

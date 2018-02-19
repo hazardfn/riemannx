@@ -143,9 +143,8 @@ defmodule RiemannxTest.Batch do
     refute assert_events_received(event, 5000)
     Riemannx.send_async(event)
 
-    Enum.each(1..10, fn _ ->
-      assert assert_events_received(event)
-    end)
+    events = Enum.map(1..10, fn(_) -> event end)
+    assert assert_events_received(events)
   end
 
   test "Batching will still send events at the right interval even if the size is not reached" do
@@ -165,9 +164,8 @@ defmodule RiemannxTest.Batch do
       Riemannx.send_async(event)
     end)
 
-    Enum.each(1..9, fn _ ->
-      assert assert_events_received(event, 1000)
-    end)
+    events = Enum.map(1..9, fn(_) -> event end)
+    assert assert_events_received(events, 1000)
   end
 
   property "All reasonable metrics async", [:verbose] do
