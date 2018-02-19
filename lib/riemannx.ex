@@ -126,7 +126,8 @@ defmodule Riemannx do
   @spec send_async(events()) :: :ok
   def send_async(events) do
     if Settings.type() == :batch do
-      Event.list_to_events(events)
+      events = Event.list_to_events(events)
+      events
       |> enqueue()
     else
       events
