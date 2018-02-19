@@ -55,7 +55,7 @@ defmodule Riemannx.Connection do
   @doc """
   Tells the given worker to asynchronously process an event.
   """
-  @spec send_async(encoded_event()) :: :ok
+  @spec send_async(encoded_event() | Riemannx.events()) :: :ok
   def send_async(e), do: module().send_async(e)
 
   @doc """
