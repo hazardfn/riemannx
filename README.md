@@ -18,7 +18,7 @@ It has an experimental combined option that makes the best of both TCP and UDP -
 * As of 2.3.0 You can specify a host in config or we will work one out for you.
 * As of 2.4.0 You can set a priority for the workers.
 * As of 3.0.0 configuration entries are separate for the different connection types (see: [Migrating to 3.0+](#migrate-3.0)) - in all 3.x versions there is a legacy settings backend if you want to upgrade without breaking your previous setup.
-* As of 4.0.0 combined batching is the default connection type and the legacy config is removed (see: [Batching](#batching))
+* As of 4.0.0 combined batching is the default connection type and the legacy config is removed (see: [Batching](#batching)) support for time_micros was added (see: [Micro Time](#micro-time)).
 
 ## Contents
 
@@ -247,53 +247,7 @@ There is a new type called `:batch` and a settings key called `batch_settings:`,
 
 ### Micro Time<a name="micro-time"></a>
 
-From version `0.2.13` of riemann it was possible to set time in microseconds - Riemannx now supports and uses the `time_micros` field as default (unless you have set the time or time_micros field yourself, riemannx won't overwrite that). If you are using an older version of riemann you can set the `use_micro` settings key to `false`.
-
-There is a test to make sure your time isn't overwritten and it also explains the behaviour of `use_micro`. Here is an example:
-
-```elixir
-    ## Default is use_micro: true
-    event = [
-      service: "riemannx-elixir",
-      metric: 1,
-      attributes: [a: 1, keep_time: true],
-      description: "test"
-    ]
-
-    time_from_event =
-      event
-      |> Event.list_to_events()
-      |> hd()
-      |> Map.get(:time)
-
-    micro_from_event =
-      event
-      |> Event.list_to_events()
-      |> hd()
-      |> Map.get(:time_micros)
-
-    assert time_from_event == nil
-    assert is_integer(micro_from_event)
-
-    Application.put_env(:riemannx, :use_micro, false)
-
-    time_from_event =
-      event
-      |> Event.list_to_events()
-      |> hd()
-      |> Map.get(:time)
-
-    micro_from_event =
-      event
-      |> Event.list_to_events()
-      |> hd()
-      |> Map.get(:time_micros)
-
-    assert is_integer(time_from_event)
-    assert micro_from_event == nil
-
-    Application.put_env(:riemannx, :use_micro, true)
-```
+From version `0.2.13` of riemann it was possible to set time in microseconds - Riemannx now supports and uses the `time_micros` field (unless you have set the time or time_micros field yourself, riemannx won't overwrite that). If you are using an older version of riemann it will only use the seconds field.
 
 > NOTE: If you set both time and time_micros riemann will prioritise the micro time and riemannx will overwrite neither.
 
