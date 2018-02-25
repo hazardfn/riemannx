@@ -34,7 +34,6 @@ defmodule Riemannx.Settings do
   @callback options(t :: conn_type()) :: list()
   @callback events_host() :: binary()
   @callback priority!(conn_type()) :: priority() | no_return()
-  @callback micro?() :: boolean()
 
   # ===========================================================================
   # API
@@ -224,13 +223,4 @@ defmodule Riemannx.Settings do
   """
   @spec settings_module() :: module()
   def settings_module, do: get_env(:riemannx, :settings_module, Default)
-
-  @doc """
-  Determines if you want riemannx to use the new time_micros field. Set to
-  false if you are using a version of riemann that does not support this.
-
-  Default: true
-  """
-  @spec micro?() :: boolean()
-  def micro?, do: settings_module().micro?()
 end
