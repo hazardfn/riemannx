@@ -118,9 +118,6 @@ defmodule Riemannx.Settings.Default do
     end
   end
 
-  @spec micro?() :: boolean()
-  def micro?, do: get_env(:riemannx, :use_micro, true)
-
   # ===========================================================================
   # Private
   # ===========================================================================
