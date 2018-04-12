@@ -15,6 +15,7 @@ defmodule Riemannx.Connections.TLS do
   alias Riemannx.Connection
   alias Riemannx.Proto.Msg
   alias Riemannx.Metrics
+  import Kernel, except: [send: 2]
   import Riemannx.Settings
   require Logger
   use GenServer
@@ -29,7 +30,7 @@ defmodule Riemannx.Connections.TLS do
   # API
   # ===========================================================================
   def get_worker, do: :poolboy.checkout(pool_name(:tls), true, :infinity)
-  def send(e), do: GenServer.call(get_worker(), {:send_msg, e})
+  def send(e, t), do: GenServer.call(get_worker(), {:send_msg, e}, t)
   def send_async(e), do: GenServer.cast(get_worker(), {:send_msg, e})
   def query(m, t), do: GenServer.call(get_worker(), {:send_msg, m, t})
   def release(w), do: :poolboy.checkin(pool_name(:tls), w)
@@ -73,7 +74,7 @@ defmodule Riemannx.Connections.TLS do
 
         {:error, code} ->
           e = [error: "#{__MODULE__} | Unable to send event: #{code}", message: msg]
-          send(self(), {:error, e})
+          Kernel.send(self(), {:error, e})
           e
       end
 
@@ -90,7 +91,7 @@ defmodule Riemannx.Connections.TLS do
 
         {:error, code} ->
           e = [error: "#{__MODULE__} | Unable to send event: #{code}", message: msg]
-          send(self(), {:error, e})
+          Kernel.send(self(), {:error, e})
           e
       end
 
