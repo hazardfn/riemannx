@@ -202,6 +202,6 @@ defmodule Riemannx do
     end
   end
 
-  defp enqueue_sync(message), do: Conn.send(message)
+  defp enqueue_sync(message), do: Conn.send(message, Settings.send_timeout())
   defp enqueue(message), do: Conn.send_async(message)
 end

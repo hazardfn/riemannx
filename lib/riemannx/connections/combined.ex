@@ -28,7 +28,7 @@ defmodule Riemannx.Connections.Combined do
   # ===========================================================================
   # API
   # ===========================================================================
-  def send(e), do: conn_module(e).send(e)
+  def send(e, t), do: conn_module(e).send(e, t)
   def send_async(e), do: conn_module(e).send_async(e)
   def query(m, t), do: TCP.query(m, t)
 

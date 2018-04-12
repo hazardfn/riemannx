@@ -98,6 +98,7 @@ To use riemannx all you need to do is fill out some config entries - after that 
 config :riemannx, [
   host: "localhost", # The riemann server
   event_host: "my_app", # You can override the host name sent to riemann if you want (see: Host Injection)
+  send_timeout: 30_000, # Synchronous send timeout
   type: :batch, # The type of connection you want to run (:tcp, :udp, :tls, :combined, :batch)
   settings_module: Riemannx.Settings.Default # The backend used for reading settings back
   metrics_module: Riemannx.Metrics.Default # The backend used for sending metrics

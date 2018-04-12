@@ -143,7 +143,7 @@ defmodule RiemannxTest.Batch do
     refute assert_events_received(event, 5000)
     Riemannx.send_async(event)
 
-    events = Enum.map(1..10, fn(_) -> event end)
+    events = Enum.map(1..10, fn _ -> event end)
     assert assert_events_received(events)
   end
 
@@ -164,7 +164,29 @@ defmodule RiemannxTest.Batch do
       Riemannx.send_async(event)
     end)
 
-    events = Enum.map(1..9, fn(_) -> event end)
+    events = Enum.map(1..9, fn _ -> event end)
+    assert assert_events_received(events, 1000)
+  end
+
+  test "Send timeout won't kill the process and will send eventually" do
+    Application.put_env(:riemannx, :send_timeout, 0)
+
+    event = [
+      service: "riemannx-elixir",
+      metric: 1,
+      attributes: [a: 1],
+      description: "test"
+    ]
+
+    Enum.each(1..9, fn _ ->
+      Riemannx.send_async(event)
+    end)
+
+    refute_events_received()
+
+    Application.put_env(:riemannx, :send_timeout, 30)
+
+    events = Enum.map(1..9, fn _ -> event end)
     assert assert_events_received(events, 1000)
   end
 
