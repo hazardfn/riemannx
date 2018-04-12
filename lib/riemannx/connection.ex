@@ -38,7 +38,7 @@ defmodule Riemannx.Connection do
   # ===========================================================================
   # Callbacks
   # ===========================================================================
-  @callback send(e :: encoded_event()) :: :ok | error()
+  @callback send(e :: encoded_event(), t :: non_neg_integer()) :: :ok | error()
   @callback send_async(e :: encoded_event()) :: :ok
   @callback query(m :: query(), t :: pid()) :: :ok | error()
 
@@ -49,8 +49,8 @@ defmodule Riemannx.Connection do
   @doc """
   Synchronously process an event.
   """
-  @spec send(encoded_event()) :: :ok | error()
-  def send(e), do: module().send(e)
+  @spec send(encoded_event(), non_neg_integer()) :: :ok | error()
+  def send(e, t \\ 30_000), do: module().send(e, t)
 
   @doc """
   Tells the given worker to asynchronously process an event.

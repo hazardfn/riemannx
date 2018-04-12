@@ -21,6 +21,7 @@ defmodule Riemannx.Settings do
   @callback max_overflow(t :: conn_type()) :: non_neg_integer()
   @callback type() :: conn_type() | :combined | :batch
   @callback module(conn_type() | :combined | :batch) :: module()
+  @callback send_timeout() :: non_neg_integer()
   @callback batch_module() :: module()
   @callback batch_type() :: conn_type() | :combined
   @callback batch_size() :: integer()
@@ -105,6 +106,16 @@ defmodule Riemannx.Settings do
   """
   @spec module(conn_type()) :: module()
   def module(t), do: settings_module().module(t)
+
+  @doc """
+  Returns the timeout for sending a synchronous message, once the timeout is
+  reached the riemannx batch connection will catch the error and try
+  sending again. Other backends will error as normal. Give in seconds.
+
+  Default: `30`
+  """
+  @spec send_timeout() :: non_neg_integer()
+  def send_timeout, do: settings_module().send_timeout()
 
   @doc """
   Returns the batch type, similar to `type()` but is used to provide a

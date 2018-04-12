@@ -7,6 +7,7 @@ defmodule Riemannx.Connections.UDP do
   @behaviour Riemannx.Connection
   alias Riemannx.Connection
   alias Riemannx.Metrics
+  import Kernel, except: [send: 2]
   import Riemannx.Settings
   require Logger
   use GenServer
@@ -22,11 +23,11 @@ defmodule Riemannx.Connections.UDP do
     end
   end
 
-  def send(e) do
+  def send(e, t) do
     pid = get_worker(e)
 
     if is_pid(pid) do
-      GenServer.call(pid, {:send_msg, e})
+      GenServer.call(pid, {:send_msg, e}, t)
     else
       pid
     end
@@ -90,7 +91,7 @@ defmodule Riemannx.Connections.UDP do
 
         {:error, code} ->
           e = [error: "#{__MODULE__} | Unable to send event: #{code}", message: msg]
-          send(self(), {:error, e})
+          Kernel.send(self(), {:error, e})
           e
       end
 

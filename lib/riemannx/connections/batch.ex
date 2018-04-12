@@ -27,16 +27,18 @@ defmodule Riemannx.Connections.Batch do
   module. They are not batched or put in the queue.
   ```
   """
+  import Riemannx.Settings
+  import Kernel, except: [send: 2]
   alias Riemannx.Connections.Batch
   alias Riemannx.Proto.Msg
-  import Riemannx.Settings
   use GenServer
+
   @behaviour Riemannx.Connection
 
   # ===========================================================================
   # API
   # ===========================================================================
-  def send(e), do: batch_module().send(e)
+  def send(e, t), do: batch_module().send(e, t)
   def send_async(e), do: GenServer.cast(__MODULE__, {:push, e})
   def query(m, t), do: batch_module().query(m, t)
 
@@ -54,7 +56,7 @@ defmodule Riemannx.Connections.Batch do
 
   def handle_cast({:push, event}, queue) do
     queue = Qex.push(queue, event)
-    if Enum.count(queue) >= batch_size(), do: send(self(), :flush)
+    if Enum.count(queue) >= batch_size(), do: Kernel.send(self(), :flush)
     {:noreply, queue}
   end
 
@@ -64,20 +66,25 @@ defmodule Riemannx.Connections.Batch do
   # Private
   # ===========================================================================
   defp flush(items) when is_list(items) do
-    batch = Enum.flat_map(items, fn(item) ->
-      item
-    end)
+    batch =
+      Enum.flat_map(items, fn item ->
+        item
+      end)
 
-    [events: batch]
-    |> Msg.new()
-    |> Msg.encode()
-    |> Batch.send()
+    try do
+      [events: batch]
+      |> Msg.new()
+      |> Msg.encode()
+      |> Batch.send(send_timeout())
+    catch
+      :exit, _ -> flush(items)
+    end
 
     Process.send_after(self(), :flush, batch_interval())
   end
 
   defp flush(queue) do
-    flush(Enum.to_list(queue))
+    queue |> Enum.to_list() |> flush()
     Qex.new()
   end
 end

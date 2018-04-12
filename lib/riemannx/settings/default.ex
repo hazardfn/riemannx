@@ -47,6 +47,9 @@ defmodule Riemannx.Settings.Default do
     end
   end
 
+  @spec send_timeout() :: non_neg_integer()
+  def send_timeout, do: get_env(:riemannx, :send_timeout, 30) * 1000
+
   @spec batch_type() :: conn_type() | :combined
   def batch_type, do: extract_batch(:type, :combined)
 
