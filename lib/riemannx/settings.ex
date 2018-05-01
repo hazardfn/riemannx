@@ -112,7 +112,7 @@ defmodule Riemannx.Settings do
   reached the riemannx batch connection will catch the error and try
   sending again. Other backends will error as normal. Give in seconds.
 
-  Default: `30`
+  Default: `5`
   """
   @spec send_timeout() :: non_neg_integer()
   def send_timeout, do: settings_module().send_timeout()
