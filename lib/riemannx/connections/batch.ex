@@ -65,7 +65,10 @@ defmodule Riemannx.Connections.Batch do
   # ===========================================================================
   # Private
   # ===========================================================================
-  defp flush(items) when is_list(items) do
+  defp flush(items, 0) when is_list(items),
+    do: Process.send_after(self(), :flush, batch_interval())
+
+  defp flush(items, n) when is_list(items) do
     batch =
       Enum.flat_map(items, fn item ->
         item
@@ -77,14 +80,14 @@ defmodule Riemannx.Connections.Batch do
       |> Msg.encode()
       |> Batch.send(send_timeout())
     catch
-      :exit, _ -> flush(items)
+      :exit, _ -> flush(items, n-1)
     end
 
     Process.send_after(self(), :flush, batch_interval())
   end
 
   defp flush(queue) do
-    queue |> Enum.to_list() |> flush()
+    queue |> Enum.to_list() |> flush(3)
     Qex.new()
   end
 end
