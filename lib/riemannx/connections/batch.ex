@@ -79,11 +79,11 @@ defmodule Riemannx.Connections.Batch do
       |> Msg.new()
       |> Msg.encode()
       |> Batch.send(send_timeout())
+
+      Process.send_after(self(), :flush, batch_interval())
     catch
       :exit, _ -> flush(items, n-1)
     end
-
-    Process.send_after(self(), :flush, batch_interval())
   end
 
   defp flush(queue) do
