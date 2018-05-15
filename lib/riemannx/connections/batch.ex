@@ -61,6 +61,7 @@ defmodule Riemannx.Connections.Batch do
   end
 
   def handle_info(:flush, queue), do: {:noreply, flush(queue)}
+  def handle_info(_, queue), do: {:noreply, queue}
 
   # ===========================================================================
   # Private
