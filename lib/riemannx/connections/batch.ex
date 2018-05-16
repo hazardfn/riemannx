@@ -29,7 +29,6 @@ defmodule Riemannx.Connections.Batch do
   """
   import Riemannx.Settings
   import Kernel, except: [send: 2]
-  alias Riemannx.Connections.Batch
   alias Riemannx.Proto.Msg
   use GenServer
 
@@ -56,8 +55,10 @@ defmodule Riemannx.Connections.Batch do
 
   def handle_cast({:push, event}, queue) do
     queue = Qex.push(queue, event)
-    if Enum.count(queue) >= batch_size(), do: Kernel.send(self(), :flush)
-    {:noreply, queue}
+
+    if Enum.count(queue) >= batch_size(),
+      do: {:noreply, flush(queue)},
+      else: {:noreply, queue}
   end
 
   def handle_info(:flush, queue), do: {:noreply, flush(queue)}
@@ -66,29 +67,22 @@ defmodule Riemannx.Connections.Batch do
   # ===========================================================================
   # Private
   # ===========================================================================
-  defp flush(items, 0) when is_list(items),
-    do: Process.send_after(self(), :flush, batch_interval())
-
-  defp flush(items, n) when is_list(items) do
+  defp flush(items) when is_list(items) do
     batch =
       Enum.flat_map(items, fn item ->
         item
       end)
 
-    try do
-      [events: batch]
-      |> Msg.new()
-      |> Msg.encode()
-      |> Batch.send(send_timeout())
+    [events: batch]
+    |> Msg.new()
+    |> Msg.encode()
+    |> batch_module().send_async()
 
-      Process.send_after(self(), :flush, batch_interval())
-    catch
-      :exit, _ -> flush(items, n-1)
-    end
+    Process.send_after(self(), :flush, batch_interval())
   end
 
   defp flush(queue) do
-    queue |> Enum.to_list() |> flush(3)
+    queue |> Enum.to_list() |> flush()
     Qex.new()
   end
 end
