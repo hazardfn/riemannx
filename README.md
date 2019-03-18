@@ -1,4 +1,5 @@
 # Riemannx | [![Build Status](https://travis-ci.org/hazardfn/riemannx.svg?branch=master "Build Status")](http://travis-ci.org/hazardfn/riemannx) [![Coverage Status](https://coveralls.io/repos/github/hazardfn/riemannx/badge.svg?branch=master)](https://coveralls.io/github/hazardfn/riemannx?branch=master) [![Ebert](https://ebertapp.io/github/hazardfn/riemannx.svg)](https://ebertapp.io/github/hazardfn/riemannx) [![Hex.pm](https://img.shields.io/hexpm/dt/riemannx.svg)](https://hex.pm/packages/riemannx) [![GitHub release](https://img.shields.io/github/release/hazardfn/riemannx.svg)](https://github.com/hazardfn/riemannx/releases/latest)
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fhazardfn%2Friemannx.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fhazardfn%2Friemannx?ref=badge_shield)
 
 > A fully featured riemann client built on the reliability of poolboy and the
 > awesome power of Elixir!
@@ -315,3 +316,7 @@ This repository uses the [Gitflow](https://www.atlassian.com/git/tutorials/compa
 ## 6. Acknowledgements<a name="ack"></a>
 
 A portion of code has been borrowed from the original [elixir-riemann client](https://github.com/koudelka/elixir-riemann). Most of the protobuf stuff comes from there.
+
+
+## License
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fhazardfn%2Friemannx.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fhazardfn%2Friemannx?ref=badge_large)
