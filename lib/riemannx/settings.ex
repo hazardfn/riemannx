@@ -19,6 +19,7 @@ defmodule Riemannx.Settings do
   @callback pool_size(t :: conn_type()) :: non_neg_integer()
   @callback strategy(t :: conn_type()) :: :fifo | :lifo
   @callback max_overflow(t :: conn_type()) :: non_neg_integer()
+  @callback checkout_timeout() :: non_neg_integer()
   @callback type() :: conn_type() | :combined | :batch
   @callback module(conn_type() | :combined | :batch) :: module()
   @callback send_timeout() :: non_neg_integer()
@@ -76,6 +77,21 @@ defmodule Riemannx.Settings do
   """
   @spec max_overflow(conn_type()) :: non_neg_integer()
   def max_overflow(t), do: settings_module().max_overflow(t)
+
+  @doc """
+  The maximum number of seconds to wait for a free worker before discarding data,
+  :infinity is a valid value here and means you will wait for eternity for a
+  free worker.
+
+  Note that :infinity can cause a build-up of messages in your process inbox if
+  using the batcher and your riemann instance experiences an outage!
+
+  DATA MAY BE DISCARDED IF NO AVAILABLE WORKER IS PRESENT AFTER THIS TIMEOUT!
+
+  Default: 30_000
+  """
+  @spec checkout_timeout() :: non_neg_integer()
+  def checkout_timeout(), do: settings_module().checkout_timeout()
 
   @doc """
   Returns the connection type set (tls, tcp, udp, combined, batch).

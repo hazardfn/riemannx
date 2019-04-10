@@ -33,6 +33,9 @@ defmodule Riemannx.Settings.Default do
   @spec max_overflow(conn_type()) :: non_neg_integer()
   def max_overflow(t) when t in @types, do: extract(t, :max_overflow, 2)
 
+  @spec checkout_timeout() :: non_neg_integer()
+  def checkout_timeout, do: get_env(:riemannx, :checkout_timeout, 30_000)
+
   @spec type() :: :tcp | :udp | :tls | :combined | :batch
   def type, do: get_env(:riemannx, :type, :batch)
 
