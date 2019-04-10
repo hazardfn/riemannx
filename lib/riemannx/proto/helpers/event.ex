@@ -56,7 +56,6 @@ defmodule Riemannx.Proto.Helpers.Event do
     end
   end
 
-  @moduledoc false
   def build(args, mod) do
     args
     |> Enum.into(%{})
