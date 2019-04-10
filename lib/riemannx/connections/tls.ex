@@ -29,7 +29,7 @@ defmodule Riemannx.Connections.TLS do
   # ===========================================================================
   # API
   # ===========================================================================
-  def get_worker, do: :poolboy.checkout(pool_name(:tls), true, :infinity)
+  def get_worker, do: :poolboy.checkout(pool_name(:tls), true, checkout_timeout())
   def send(e, t), do: GenServer.call(get_worker(), {:send_msg, e}, t)
   def send_async(e), do: GenServer.cast(get_worker(), {:send_msg, e})
   def query(m, t), do: GenServer.call(get_worker(), {:send_msg, m, t})

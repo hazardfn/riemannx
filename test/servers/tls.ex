@@ -75,15 +75,17 @@ defmodule RiemannxTest.Servers.TLS do
   end
 
   defp try_listen(port) do
+    {:ok, cwd} = File.cwd()
+
     {:ok, _} =
       :ssl.listen(port, [
         :binary,
         packet: 4,
         active: true,
         reuseaddr: true,
-        cacertfile: "test/certs/testca/cacert.pem",
-        certfile: "test/certs/server/cert.pem",
-        keyfile: "test/certs/server/key.pem"
+        cacertfile: "#{cwd}/test/certs/testca/cacert.pem",
+        certfile: "#{cwd}/test/certs/server/server.crt",
+        keyfile: "#{cwd}/test/certs/server/server.pkcs8"
       ])
   rescue
     MatchError ->

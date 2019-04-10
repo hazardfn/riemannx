@@ -1,7 +1,7 @@
 defmodule Riemannx.Mixfile do
   use Mix.Project
 
-  @version "4.0.8"
+  @version "4.0.9"
 
   def project do
     [
