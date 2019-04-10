@@ -99,6 +99,7 @@ config :riemannx, [
   host: "localhost", # The riemann server
   event_host: "my_app", # You can override the host name sent to riemann if you want (see: Host Injection)
   send_timeout: 30_000, # Synchronous send timeout
+  checkout_timeout: 30_000, # Timeout for checking out a poolboy worker
   type: :batch, # The type of connection you want to run (:tcp, :udp, :tls, :combined, :batch)
   settings_module: Riemannx.Settings.Default # The backend used for reading settings back
   metrics_module: Riemannx.Metrics.Default # The backend used for sending metrics
@@ -243,6 +244,8 @@ Batching as of 4.0.0 is the default connection behaviour - the default batch siz
 * Whatever is in the queue will be sent every interval.
 
 * If the size of the queue reaches the set batch size it will be flushed regardless of interval.
+
+* Batches will be dropped if no workers are available to handle the batch unless `checkout_timer` is set to `:infinity`
 
 There is a new type called `:batch` and a settings key called `batch_settings:`, inside batch_settings you can specify a type for the underlying connection (`:tcp`, `:udp`, `:combined`, `:tls`). As always combined is the default.
 

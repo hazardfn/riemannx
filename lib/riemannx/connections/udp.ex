@@ -19,7 +19,7 @@ defmodule Riemannx.Connections.UDP do
     if byte_size(e) > max_udp_size() do
       [error: "Transmission too large!", message: e]
     else
-      :poolboy.checkout(pool_name(:udp), true, :infinity)
+      :poolboy.checkout(pool_name(:udp), true, checkout_timeout())
     end
   end
 
