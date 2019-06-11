@@ -12,12 +12,13 @@ defmodule RiemannxTest.TLS do
   setup_all do
     Application.load(:riemannx)
     Application.put_env(:riemannx, :type, :tls)
+    {:ok, cwd} = File.cwd()
 
     Utils.update_setting(
       :tls,
       :options,
-      keyfile: "test/certs/client/key.pem",
-      certfile: "test/certs/client/cert.pem",
+      keyfile: "#{cwd}/test/certs/client/client.key",
+      certfile: "#{cwd}/test/certs/client/client.crt",
       server_name_indication: :disable
     )
 
