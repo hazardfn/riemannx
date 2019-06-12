@@ -29,7 +29,9 @@ defmodule Riemannx.Connections.TCP do
   # ===========================================================================
   # API
   # ===========================================================================
-  def get_worker, do: :poolboy.checkout(pool_name(:tcp), true, checkout_timeout())
+  def get_worker,
+    do: :poolboy.checkout(pool_name(:tcp), true, checkout_timeout())
+
   def send(e, t), do: GenServer.call(get_worker(), {:send_msg, e}, t)
   def send_async(e), do: GenServer.cast(get_worker(), {:send_msg, e})
   def query(m, t), do: GenServer.call(get_worker(), {:send_msg, m, t})
@@ -65,7 +67,12 @@ defmodule Riemannx.Connections.TCP do
   end
 
   def handle_cast(:init, _state) do
-    conn = %Connection{host: to_charlist(host()), port: port(:tcp), options: options(:tcp)}
+    conn = %Connection{
+      host: to_charlist(host()),
+      port: port(:tcp),
+      options: options(:tcp)
+    }
+
     retry_count = retry_count(:tcp)
     state = conn
     tcp_socket = try_tcp_connect(state, retry_count)
@@ -88,7 +95,11 @@ defmodule Riemannx.Connections.TCP do
           :ok
 
         {:error, code} ->
-          e = [error: "#{__MODULE__} | Unable to send event: #{code}", message: msg]
+          e = [
+            error: "#{__MODULE__} | Unable to send event: #{code}",
+            message: msg
+          ]
+
           Kernel.send(self(), {:error, e})
           e
       end
@@ -105,7 +116,11 @@ defmodule Riemannx.Connections.TCP do
           :ok
 
         {:error, code} ->
-          e = [error: "#{__MODULE__} | Unable to send event: #{code}", message: msg]
+          e = [
+            error: "#{__MODULE__} | Unable to send event: #{code}",
+            message: msg
+          ]
+
           Kernel.send(self(), {:error, e})
           e
       end

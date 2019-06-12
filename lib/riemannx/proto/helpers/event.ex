@@ -43,7 +43,8 @@ defmodule Riemannx.Proto.Helpers.Event do
       def deconstruct(event), do: deconstruct(event, nil)
 
       def deconstruct(event, metric) do
-        attributes = Enum.reduce(event.attributes, %{}, &Map.put(&2, &1.key, &1.value))
+        attributes =
+          Enum.reduce(event.attributes, %{}, &Map.put(&2, &1.key, &1.value))
 
         event
         |> Map.from_struct()
@@ -59,7 +60,9 @@ defmodule Riemannx.Proto.Helpers.Event do
   def build(args, mod) do
     args
     |> Enum.into(%{})
-    |> Map.put_new_lazy(:time_micros, fn -> :erlang.system_time(:micro_seconds) end)
+    |> Map.put_new_lazy(:time_micros, fn ->
+      :erlang.system_time(:micro_seconds)
+    end)
     |> Map.put_new_lazy(:time, fn -> :erlang.system_time(:seconds) end)
     |> Map.put_new_lazy(:host, &Settings.events_host/0)
     |> set_attributes_field
