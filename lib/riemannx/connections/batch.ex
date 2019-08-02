@@ -61,9 +61,9 @@ defmodule Riemannx.Connections.Batch do
   end
 
   def handle_cast({:push, event}, state) do
-    state = push(state, event)
+    state = %__MODULE__{queue: queue} = push(state, event)
 
-    if queue_size(state) >= batch_size(),
+    if queue_big_enough_to_flush?(queue),
       do: {:noreply, flush(state)},
       else: {:noreply, state}
   end
@@ -103,14 +103,18 @@ defmodule Riemannx.Connections.Batch do
   end
 
   defp flush(state = %__MODULE__{queue: queue}) do
-    ref = queue |> Enum.to_list() |> flush()
+    # the queue can grow larger than the configured batch size while we're waiting;
+    # if the remaining part is still big enough to flush, we'll do it right after this flush proc exits
+    {flush_window, remaining} = queue |> Enum.split(batch_size())
+    ref = flush_window |> flush()
+    remaining_queue = Qex.new(remaining)
 
     %__MODULE__{
       state
-      | pending_flush: false,
+      | pending_flush: queue_big_enough_to_flush?(remaining_queue),
         ongoing_flush: true,
         flush_ref: ref,
-        queue: Qex.new()
+        queue: remaining_queue
     }
   end
 
@@ -124,5 +128,7 @@ defmodule Riemannx.Connections.Batch do
     %__MODULE__{state | queue: Qex.push(queue, event)}
   end
 
-  defp queue_size(%__MODULE__{queue: queue}), do: Enum.count(queue)
+  defp queue_size(queue), do: Enum.count(queue)
+
+  defp queue_big_enough_to_flush?(queue), do: queue_size(queue) >= batch_size()
 end
