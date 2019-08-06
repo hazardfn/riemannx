@@ -14,6 +14,9 @@ defmodule Riemannx do
   config :riemannx, [
     host: "localhost", # The riemann server
     event_host: "my_app", # You can override the host name sent to riemann if you want (see: Host Injection)
+    send_timeout: 30_000, # Synchronous send timeout
+    checkout_timeout: 30_000, # Timeout for checking out a poolboy worker
+    block_workers: false # If set to true a message will wait for a free worker if all are busy
     type: :batch, # The type of connection you want to run (:tcp, :udp, :tls, :combined, :batch)
     settings_module: Riemannx.Settings.Default # The backend used for reading settings back
     metrics_module: Riemannx.Metrics.Default # The backend used for sending metrics
@@ -125,15 +128,9 @@ defmodule Riemannx do
   """
   @spec send_async(events()) :: :ok
   def send_async(events) do
-    if Settings.type() == :batch do
-      events = Event.list_to_events(events)
-      events
-      |> enqueue()
-    else
-      events
-      |> create_events_msg()
-      |> enqueue()
-    end
+    events
+    |> create_events_msg()
+    |> enqueue()
   end
 
   @doc """

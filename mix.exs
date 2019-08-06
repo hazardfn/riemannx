@@ -76,7 +76,9 @@ defmodule Riemannx.Mixfile do
   end
 
   defp dialyzer do
-    if travis?(), do: [plt_file: {:no_warn, System.get_env("PLT_LOCATION")}], else: []
+    if travis?(),
+      do: [plt_file: {:no_warn, System.get_env("PLT_LOCATION")}],
+      else: []
   end
 
   defp travis? do

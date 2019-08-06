@@ -28,6 +28,7 @@ defmodule Riemannx.Connections.Combined do
   # ===========================================================================
   # API
   # ===========================================================================
+  def checkout(t, ct), do: conn_module(t).checkout(t, ct)
   def send(e, t), do: conn_module(e).send(e, t)
   def send_async(e), do: conn_module(e).send_async(e)
   def query(m, t), do: TCP.query(m, t)
@@ -35,6 +36,9 @@ defmodule Riemannx.Connections.Combined do
   # ===========================================================================
   # Private
   # ===========================================================================
+  defp conn_module(:tcp), do: TCP
+  defp conn_module(:udp), do: UDP
+
   defp conn_module(event) do
     if byte_size(event) > max_udp_size(), do: TCP, else: UDP
   end

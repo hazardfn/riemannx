@@ -1,4 +1,4 @@
-# Riemannx | [![Build Status](https://travis-ci.org/hazardfn/riemannx.svg?branch=master "Build Status")](http://travis-ci.org/hazardfn/riemannx) [![Coverage Status](https://coveralls.io/repos/github/hazardfn/riemannx/badge.svg?branch=master)](https://coveralls.io/github/hazardfn/riemannx?branch=master) [![Ebert](https://ebertapp.io/github/hazardfn/riemannx.svg)](https://ebertapp.io/github/hazardfn/riemannx) [![Hex.pm](https://img.shields.io/hexpm/dt/riemannx.svg)](https://hex.pm/packages/riemannx) [![GitHub release](https://img.shields.io/github/release/hazardfn/riemannx.svg)](https://github.com/hazardfn/riemannx/releases/latest)
+# Riemannx | [![Build Status](https://travis-ci.org/hazardfn/riemannx.svg?branch=master "Build Status")](http://travis-ci.org/hazardfn/riemannx) [![Coverage Status](https://coveralls.io/repos/github/hazardfn/riemannx/badge.svg?branch=master)](https://coveralls.io/github/hazardfn/riemannx?branch=master) [![SourceLevel](https://app.sourcelevel.io/github/hazardfn/riemannx.svg)](https://app.sourcelevel.io/github/hazardfn/riemannx) [![Hex.pm](https://img.shields.io/hexpm/dt/riemannx.svg)](https://hex.pm/packages/riemannx) [![GitHub release](https://img.shields.io/github/release/hazardfn/riemannx.svg)](https://github.com/hazardfn/riemannx/releases/latest)
 
 > A fully featured riemann client built on the reliability of poolboy and the
 > awesome power of Elixir!
@@ -19,6 +19,7 @@ It has an experimental combined option that makes the best of both TCP and UDP -
 * As of 2.4.0 You can set a priority for the workers.
 * As of 3.0.0 configuration entries are separate for the different connection types (see: [Migrating to 3.0+](#migrate-3.0)) - in all 3.x versions there is a legacy settings backend if you want to upgrade without breaking your previous setup.
 * As of 4.0.0 combined batching is the default connection type and the legacy config is removed (see: [Batching](#batching)) support for time_micros was added (see: [Micro Time](#micro-time)).
+* As of 5.0.0 stats can be cached and retried in various scenarios (see: [Caching](#caching)), only elixir ~> 1.7 is supported.
 
 ## Contents
 
@@ -41,6 +42,7 @@ It has an experimental combined option that makes the best of both TCP and UDP -
     * [Migrating to 3.0+](#migrate-3.0)
     * [Settings Backend](#settings-backend)
     * [Metrics Backend](#metrics-backend)
+    * [Caching](#caching)
 5. [Contributions](#contribute)
 6. [Acknowledgements](#ack)
 
@@ -100,6 +102,7 @@ config :riemannx, [
   event_host: "my_app", # You can override the host name sent to riemann if you want (see: Host Injection)
   send_timeout: 30_000, # Synchronous send timeout
   checkout_timeout: 30_000, # Timeout for checking out a poolboy worker
+  block_workers: false # If set to true a message will wait for a free worker if all are busy
   type: :batch, # The type of connection you want to run (:tcp, :udp, :tls, :combined, :batch)
   settings_module: Riemannx.Settings.Default # The backend used for reading settings back
   metrics_module: Riemannx.Metrics.Default # The backend used for sending metrics

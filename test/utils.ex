@@ -13,8 +13,8 @@ defmodule RiemannxTest.Utils do
     vsn = :binary.last(self)
 
     bin =
-      <<131, 102, 100, length::size(2)-unit(8), name::size(length)-binary, n::size(4)-unit(8),
-        vsn::size(8)>>
+      <<131, 102, 100, length::size(2)-unit(8), name::size(length)-binary,
+        n::size(4)-unit(8), vsn::size(8)>>
 
     :erlang.binary_to_term(bin)
   end
@@ -25,9 +25,9 @@ defmodule RiemannxTest.Utils do
     Application.put_env(:riemannx, type, new_kw)
   end
 
-  def update_batch_setting(opt, value) do
-    opts = Application.get_env(:riemannx, :batch_settings, [])
+  def update_queue_setting(opt, value) do
+    opts = Application.get_env(:riemannx, :queue_settings, [])
     new_kw = Keyword.put(opts, opt, value)
-    Application.put_env(:riemannx, :batch_settings, new_kw)
+    Application.put_env(:riemannx, :queue_settings, new_kw)
   end
 end

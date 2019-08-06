@@ -15,31 +15,29 @@ defmodule Riemannx.Connections.UDP do
   # ===========================================================================
   # API
   # ===========================================================================
-  def get_worker(e) do
-    if byte_size(e) > max_udp_size() do
-      [error: "Transmission too large!", message: e]
-    else
-      :poolboy.checkout(pool_name(:udp), true, checkout_timeout())
-    end
+  def checkout(t, :async) do
+    :poolboy.checkout(pool_name(t), block_workers?(), checkout_timeout())
+  end
+
+  def checkout(t, :sync) do
+    :poolboy.checkout(pool_name(t), true, checkout_timeout())
   end
 
   def send(e, t) do
-    pid = get_worker(e)
-
-    if is_pid(pid) do
+    if healthy_size?(e) do
+      pid = Connection.checkout(:udp, :sync)
       GenServer.call(pid, {:send_msg, e}, t)
     else
-      pid
+      size_error(e)
     end
   end
 
   def send_async(e) do
-    pid = get_worker(e)
-
-    if is_pid(pid) do
+    if healthy_size?(e) do
+      pid = Connection.checkout(:udp, :async)
       GenServer.cast(pid, {:send_msg, e})
     else
-      pid
+      size_error(e)
     end
   end
 
@@ -53,6 +51,12 @@ defmodule Riemannx.Connections.UDP do
     {:ok, udp_socket} = :gen_udp.open(0, state.options)
     udp_socket
   end
+
+  defp healthy_size?(e) do
+    if byte_size(e) > max_udp_size(), do: false, else: true
+  end
+
+  defp size_error(e), do: [error: "Transmission too large!", message: e]
 
   # ===========================================================================
   # GenServer Callbacks
@@ -69,7 +73,12 @@ defmodule Riemannx.Connections.UDP do
   end
 
   def handle_cast(:init, _state) do
-    conn = %Connection{host: to_charlist(host()), port: port(:udp), options: options(:udp)}
+    conn = %Connection{
+      host: to_charlist(host()),
+      port: port(:udp),
+      options: options(:udp)
+    }
+
     udp_socket = udp_connect(conn)
     {:noreply, %{conn | socket: udp_socket}}
   end
@@ -90,7 +99,11 @@ defmodule Riemannx.Connections.UDP do
           :ok
 
         {:error, code} ->
-          e = [error: "#{__MODULE__} | Unable to send event: #{code}", message: msg]
+          e = [
+            error: "#{__MODULE__} | Unable to send event: #{code}",
+            message: msg
+          ]
+
           Kernel.send(self(), {:error, e})
           e
       end

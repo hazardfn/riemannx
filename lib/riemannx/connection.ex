@@ -8,6 +8,7 @@ defmodule Riemannx.Connection do
   """
   import Riemannx.Settings
   alias Riemannx.Proto.Msg
+  alias Riemannx.Settings
 
   # ===========================================================================
   # Struct
@@ -21,6 +22,7 @@ defmodule Riemannx.Connection do
   # ===========================================================================
   # Types
   # ===========================================================================
+  @type call_type :: :async | :sync
   @type error :: [error: binary(), message: binary()]
   @type qr :: {:ok, list()}
   @type encoded_event :: binary()
@@ -38,6 +40,8 @@ defmodule Riemannx.Connection do
   # ===========================================================================
   # Callbacks
   # ===========================================================================
+  @callback checkout(t :: Settings.conn_type(), rt :: call_type()) ::
+              :full | pid()
   @callback send(e :: encoded_event(), t :: non_neg_integer()) :: :ok | error()
   @callback send_async(e :: encoded_event()) :: :ok
   @callback query(m :: query(), t :: pid()) :: :ok | error()
@@ -45,6 +49,19 @@ defmodule Riemannx.Connection do
   # ===========================================================================
   # API
   # ===========================================================================
+  @doc """
+  Checks out an appropriate worker from the pool given the type.
+  """
+  @spec checkout(Settings.conn_type(), call_type()) :: :full | pid
+  def checkout(type, :sync = call_type), do: module().checkout(type, call_type)
+
+  def checkout(type, :async = call_type) do
+    case module().checkout(type, call_type) do
+      p when is_pid(p) -> p
+      :full -> Process.whereis(queue_name())
+      _ -> Process.whereis(queue_name())
+    end
+  end
 
   @doc """
   Synchronously process an event.

@@ -51,24 +51,25 @@ defmodule RiemannxTest do
 
   test "Setting incompatible types causes an error" do
     Application.load(:riemannx)
-    Application.put_env(:riemannx, :type, :batch)
-    Utils.update_batch_setting(:type, :batch)
+    Application.put_env(:riemannx, :type, :lol)
     Application.stop(:riemannx)
-    {:error, {_, {_, {_, {_, {e, _}}}}}} = Application.ensure_all_started(:riemannx)
-    Utils.update_batch_setting(:type, :combined)
+
+    {:error, {_, {_, {_, {_, {e, _}}}}}} =
+      Application.ensure_all_started(:riemannx)
+
     Application.ensure_all_started(:riemannx)
     assert e.message =~ "not supported"
   end
 
   test "Interval returns correct values" do
-    Utils.update_batch_setting(:interval, {1, :seconds})
-    assert Settings.batch_interval() == 1000
+    Utils.update_queue_setting(:interval, {1, :seconds})
+    assert Settings.queue_interval() == 1000
 
-    Utils.update_batch_setting(:interval, {1, :milliseconds})
-    assert Settings.batch_interval() == 1
+    Utils.update_queue_setting(:interval, {1, :milliseconds})
+    assert Settings.queue_interval() == 1
 
-    Utils.update_batch_setting(:interval, {1, :minutes})
-    assert Settings.batch_interval() == 60_000
+    Utils.update_queue_setting(:interval, {1, :minutes})
+    assert Settings.queue_interval() == 60_000
   end
 
   test "Time is not overwritten if set" do

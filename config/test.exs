@@ -5,7 +5,7 @@ config :riemannx,
   tcp: [port: 5555, pool_size: 1, options: [reuseaddr: true]],
   udp: [port: 5555, pool_size: 1],
   tls: [port: 5554, pool_size: 1, options: [reuseaddr: true]],
-  batch_settings: [size: 10, interval: {100, :milliseconds}],
+  queue_settings: [size: 10, interval: {100, :milliseconds}],
+  checkout_timeout: 30_000,
   tcp_port: 5555,
-  udp_port: 5555,
-  pool_size: 1
+  udp_port: 5555

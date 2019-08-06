@@ -4,6 +4,7 @@ defmodule Riemannx.Settings.Default do
   """
   import Application
   alias Riemannx.Metrics.Default
+  alias Riemannx.Queues
   @types [:tls, :tcp, :udp]
 
   # ===========================================================================
@@ -34,39 +35,23 @@ defmodule Riemannx.Settings.Default do
   def max_overflow(t) when t in @types, do: extract(t, :max_overflow, 2)
 
   @spec checkout_timeout() :: non_neg_integer()
-  def checkout_timeout, do: get_env(:riemannx, :checkout_timeout, 30_000)
+  def checkout_timeout, do: get_env(:riemannx, :checkout_timeout, 5_000)
 
-  @spec type() :: :tcp | :udp | :tls | :combined | :batch
-  def type, do: get_env(:riemannx, :type, :batch)
+  @spec type() :: conn_type() | :combined
+  def type, do: get_env(:riemannx, :type, :combined)
 
-  @spec module(conn_type() | :combined | :batch) :: module()
+  @spec module(conn_type() | :combined) :: module()
   def module(t) do
     case t do
       :tcp -> Riemannx.Connections.TCP
       :udp -> Riemannx.Connections.UDP
       :tls -> Riemannx.Connections.TLS
       :combined -> Riemannx.Connections.Combined
-      :batch -> Riemannx.Connections.Batch
     end
   end
 
   @spec send_timeout() :: non_neg_integer()
   def send_timeout, do: get_env(:riemannx, :send_timeout, 5) * 1000
-
-  @spec batch_type() :: conn_type() | :combined
-  def batch_type, do: extract_batch(:type, :combined)
-
-  @spec batch_module() :: module()
-  def batch_module, do: batch_type() |> module()
-
-  @spec batch_size() :: integer()
-  def batch_size, do: extract_batch(:size, 100)
-
-  @spec batch_interval() :: integer()
-  def batch_interval, do: interval(extract_batch(:interval, {10, :seconds}))
-  defp interval({x, :minutes}), do: interval({x * 60, :seconds})
-  defp interval({x, :seconds}), do: x * 1000
-  defp interval({x, :milliseconds}), do: x
 
   @spec metrics_module() :: module()
   def metrics_module, do: get_env(:riemannx, :metrics_module, Default)
@@ -88,12 +73,17 @@ defmodule Riemannx.Settings.Default do
 
   @spec options(conn_type()) :: list()
   def options(:tls),
-    do: extract(:tls, :options, []) ++ [:binary, nodelay: true, packet: 4, active: true]
+    do:
+      extract(:tls, :options, []) ++
+        [:binary, nodelay: true, packet: 4, active: true]
 
   def options(:tcp),
-    do: extract(:tcp, :options, []) ++ [:binary, nodelay: true, packet: 4, active: true]
+    do:
+      extract(:tcp, :options, []) ++
+        [:binary, nodelay: true, packet: 4, active: true]
 
-  def options(:udp), do: extract(:udp, :options, []) ++ [:binary, sndbuf: max_udp_size()]
+  def options(:udp),
+    do: extract(:udp, :options, []) ++ [:binary, sndbuf: max_udp_size()]
 
   @spec events_host() :: binary()
   def events_host do
@@ -124,6 +114,30 @@ defmodule Riemannx.Settings.Default do
     end
   end
 
+  @spec block_workers?() :: boolean()
+  def block_workers?, do: get_env(:riemannx, :block_workers, false)
+
+  @spec queue_enabled?() :: boolean()
+  def queue_enabled?, do: get_env(:riemannx, :queue_enabled, true)
+
+  @spec queue_module() :: module()
+  def queue_module, do: extract_queue(:module, Queues.Default)
+
+  @spec queue_size() :: integer()
+  def queue_size, do: extract_queue(:size, 100)
+
+  @spec queue_interval() :: integer()
+  def queue_interval, do: interval(extract_queue(:interval, {10, :seconds}))
+  defp interval({x, :minutes}), do: interval({x * 60, :seconds})
+  defp interval({x, :seconds}), do: x * 1000
+  defp interval({x, :milliseconds}), do: x
+
+  @spec queue_opts() :: Keyword.t()
+  def queue_opts, do: extract_queue(:module_opts, [])
+
+  @spec queue_name() :: atom()
+  def queue_name, do: extract_queue(:name, :riemannx_queue)
+
   # ===========================================================================
   # Private
   # ===========================================================================
@@ -136,8 +150,8 @@ defmodule Riemannx.Settings.Default do
     Keyword.get(kw, opt, default)
   end
 
-  defp extract_batch(opt, default) do
-    batch_settings = get_env(:riemannx, :batch_settings, [])
-    Keyword.get(batch_settings, opt, default)
+  defp extract_queue(opt, default) do
+    queue_settings = get_env(:riemannx, :queue_settings, [])
+    Keyword.get(queue_settings, opt, default)
   end
 end

@@ -20,13 +20,9 @@ defmodule Riemannx.Settings do
   @callback strategy(t :: conn_type()) :: :fifo | :lifo
   @callback max_overflow(t :: conn_type()) :: non_neg_integer()
   @callback checkout_timeout() :: non_neg_integer()
-  @callback type() :: conn_type() | :combined | :batch
-  @callback module(conn_type() | :combined | :batch) :: module()
+  @callback type() :: conn_type() | :combined
+  @callback module(conn_type() | :combined) :: module()
   @callback send_timeout() :: non_neg_integer()
-  @callback batch_module() :: module()
-  @callback batch_type() :: conn_type() | :combined
-  @callback batch_size() :: integer()
-  @callback batch_interval() :: integer()
   @callback metrics_module() :: module()
   @callback host() :: binary()
   @callback port(t :: conn_type()) :: :inet.port_number()
@@ -36,6 +32,13 @@ defmodule Riemannx.Settings do
   @callback options(t :: conn_type()) :: list()
   @callback events_host() :: binary()
   @callback priority!(conn_type()) :: priority() | no_return()
+  @callback block_workers?() :: boolean()
+  @callback queue_enabled?() :: boolean()
+  @callback queue_module() :: module()
+  @callback queue_size() :: integer()
+  @callback queue_interval() :: integer()
+  @callback queue_opts() :: Keyword.t()
+  @callback queue_name() :: atom()
 
   # ===========================================================================
   # API
@@ -88,7 +91,7 @@ defmodule Riemannx.Settings do
 
   DATA MAY BE DISCARDED IF NO AVAILABLE WORKER IS PRESENT AFTER THIS TIMEOUT!
 
-  Default: 30_000
+  Default: 5_000
   """
   @spec checkout_timeout() :: non_neg_integer()
   def checkout_timeout(), do: settings_module().checkout_timeout()
@@ -98,7 +101,7 @@ defmodule Riemannx.Settings do
 
   Default: `:combined`
   """
-  @spec type() :: conn_type() | :combined | :batch
+  @spec type() :: conn_type() | :combined
   def type, do: settings_module().type()
 
   @doc """
@@ -132,39 +135,6 @@ defmodule Riemannx.Settings do
   """
   @spec send_timeout() :: non_neg_integer()
   def send_timeout, do: settings_module().send_timeout()
-
-  @doc """
-  Returns the batch type, similar to `type()` but is used to provide a
-  connection module to the batching wrapper.
-
-  Default: :combined
-  """
-  @spec batch_type() :: conn_type() | :combined
-  def batch_type, do: settings_module().batch_type()
-
-  @doc """
-  Returns the batch module, relevant if using the batching connection.
-
-  Default: Riemannx.Connections.Combined
-  """
-  @spec batch_module() :: module()
-  def batch_module, do: settings_module().batch_module()
-
-  @doc """
-  Returns the batch size.
-
-  Default: 100
-  """
-  @spec batch_size() :: integer()
-  def batch_size, do: settings_module().batch_size()
-
-  @doc """
-  Returns the batch interval.
-
-  Default: {1, :minutes}
-  """
-  @spec batch_interval() :: integer()
-  def batch_interval, do: settings_module().batch_interval()
 
   @doc """
   Returns the riemann host.
@@ -242,6 +212,74 @@ defmodule Riemannx.Settings do
   """
   @spec priority!(conn_type()) :: priority() | no_return()
   def priority!(t), do: settings_module().priority!(t)
+
+  @doc """
+  Sets if a call to pick a worker from the pool should block until one is
+  available.
+
+  NOTE: Setting this to true can cause huge message queue build-ups if
+  processing a large volume of data. Setting to false may cause loss of data
+  unless you opt-in to using the data cache feature.
+
+  Default: `false`
+  """
+  @spec block_workers?() :: boolean()
+  def block_workers?, do: settings_module().block_workers?()
+
+  @doc """
+  Using the queue allows you to have non-blocking workers while retaining data
+  during large bursts of messages. Messages will be placed in a queue, collected
+  and pushed out.
+
+  Use of the queue may reduce the number of times UDP is a viable protocol given
+  the size of the assembled events.
+
+  Default: `true`
+  """
+  @spec queue_enabled?() :: boolean()
+  def queue_enabled?, do: settings_module().queue_enabled?()
+
+  @doc """
+  Returns the queue module, relevant if queuing enabled.
+
+  Default: Riemannx.Queues.Default
+  """
+  @spec queue_module() :: module()
+  def queue_module, do: settings_module().queue_module()
+
+  @doc """
+  Returns the max size the queue should be allowed to reach before
+  flushing is considered below the interval threshold.
+
+  Default: 100
+  """
+  @spec queue_size() :: integer()
+  def queue_size, do: settings_module().queue_size()
+
+  @doc """
+  Returns the queue interval. This is the interval at which 'rejects' in the
+  queue will be flushed to riemann.
+
+  Default: {10, :seconds}
+  """
+  @spec queue_interval() :: integer()
+  def queue_interval, do: settings_module().queue_interval()
+
+  @doc """
+  Queue opts will get passed to the start_link of the queue module given.
+
+  Default: `[]`
+  """
+  @spec queue_opts() :: Keyword.t()
+  def queue_opts, do: settings_module().queue_opts()
+
+  @doc """
+  Gets the process name of the queue.
+
+  default `riemannx_queue`
+  """
+  @spec queue_name() :: atom()
+  def queue_name, do: settings_module().queue_name()
 
   @doc """
   Returns the settings backend module you are using.

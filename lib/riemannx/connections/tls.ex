@@ -29,10 +29,23 @@ defmodule Riemannx.Connections.TLS do
   # ===========================================================================
   # API
   # ===========================================================================
-  def get_worker, do: :poolboy.checkout(pool_name(:tls), true, checkout_timeout())
-  def send(e, t), do: GenServer.call(get_worker(), {:send_msg, e}, t)
-  def send_async(e), do: GenServer.cast(get_worker(), {:send_msg, e})
-  def query(m, t), do: GenServer.call(get_worker(), {:send_msg, m, t})
+  def checkout(t, :async) do
+    :poolboy.checkout(pool_name(t), block_workers?(), checkout_timeout())
+  end
+
+  def checkout(t, :sync) do
+    :poolboy.checkout(pool_name(t), true, checkout_timeout())
+  end
+
+  def send(e, t),
+    do: GenServer.call(Connection.checkout(:tls, :sync), {:send_msg, e}, t)
+
+  def send_async(e),
+    do: GenServer.cast(Connection.checkout(:tls, :async), {:send_msg, e})
+
+  def query(m, t),
+    do: GenServer.call(Connection.checkout(:tls, :sync), {:send_msg, m, t})
+
   def release(w), do: :poolboy.checkin(pool_name(:tls), w)
 
   # ===========================================================================
@@ -50,7 +63,12 @@ defmodule Riemannx.Connections.TLS do
   end
 
   def handle_cast(:init, _state) do
-    conn = %Connection{host: to_charlist(host()), port: port(:tls), options: options(:tls)}
+    conn = %Connection{
+      host: to_charlist(host()),
+      port: port(:tls),
+      options: options(:tls)
+    }
+
     retry_count = retry_count(:tls)
     state = conn
     ssl_socket = try_ssl_connect(state, retry_count)
@@ -73,7 +91,11 @@ defmodule Riemannx.Connections.TLS do
           :ok
 
         {:error, code} ->
-          e = [error: "#{__MODULE__} | Unable to send event: #{code}", message: msg]
+          e = [
+            error: "#{__MODULE__} | Unable to send event: #{code}",
+            message: msg
+          ]
+
           Kernel.send(self(), {:error, e})
           e
       end
@@ -90,7 +112,11 @@ defmodule Riemannx.Connections.TLS do
           :ok
 
         {:error, code} ->
-          e = [error: "#{__MODULE__} | Unable to send event: #{code}", message: msg]
+          e = [
+            error: "#{__MODULE__} | Unable to send event: #{code}",
+            message: msg
+          ]
+
           Kernel.send(self(), {:error, e})
           e
       end

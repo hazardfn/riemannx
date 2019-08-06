@@ -1,38 +1,20 @@
-defmodule Riemannx.Connections.Batch do
-  @moduledoc """
-  The batch connector is a pass through module that adds batching functionality
-  on top of the existing protocol connections.
+defmodule Riemannx.Queues.Default do
+  @doc """
+  A queue allows you to use non-blocking workers and to retry data sends at a
+  later time as workers become free. This keeps your process message queue
+  free and prevents performance degradation under high load.
 
-  Batching will aggregate events you send and then send them in bulk in
-  intervals you specify, if the events reach a certain size you can set it so
-  they publish the events before the interval.
+  The current implementation works by mimicing a connection GenServer. If,
+  when a worker is requested, they are busy the pid to the queue is returned
+  instead and messages are captured there and processed as the backend desires.
 
-  NOTE: Batching **only** works with send_async.
-
-  Below is how the batching settings look in config:
-
-  ```elixir
-    config :riemannx, [
-      type: :batch
-      batch_settings: [
-        type: :combined
-        size: 50 # Sends when the batch size reaches 50
-        interval: {5, :seconds} # How often to send the batches if they don't reach :size (:seconds, :minutes or :milliseconds)
-      ]
-    ]
-
-  ## Synchronous Sending
-
-  When you send synchronously the events are passed directly through to the underlying connection
-  module. They are not batched or put in the queue.
-  ```
+  The default queueing mechanism uses a simple queue in a GenServer state to
+  manage messages. While this is optimal for my use-case your needs may require
+  a more robust solution using external systems and added guarantees.
   """
-  import Riemannx.Settings
-  import Kernel, except: [send: 2]
   alias Riemannx.Proto.Msg
+  import Riemannx.Settings
   use GenServer
-
-  @behaviour Riemannx.Connection
 
   defstruct [
     :queue,
@@ -44,23 +26,19 @@ defmodule Riemannx.Connections.Batch do
   # ===========================================================================
   # API
   # ===========================================================================
-  def send(e, t), do: batch_module().send(e, t)
-  def send_async(e), do: GenServer.cast(__MODULE__, {:push, e})
-  def query(m, t), do: batch_module().query(m, t)
+  def start_link(opts),
+    do: GenServer.start_link(__MODULE__, opts, name: queue_name())
 
   # ===========================================================================
-  # GenStage Callbacks
+  # GenServer Callbacks
   # ===========================================================================
-  def start_link([]) do
-    GenServer.start_link(__MODULE__, nil, name: __MODULE__)
-  end
-
-  def init(_) do
-    Process.send_after(self(), :flush, batch_interval())
+  def init(_opts) do
+    Process.send_after(self(), :flush, queue_interval())
     {:ok, %__MODULE__{queue: Qex.new()}}
   end
 
-  def handle_cast({:push, event}, state) do
+  def handle_cast({:send_msg, event}, state) do
+    event = Msg.decode(event).events
     state = %__MODULE__{queue: queue} = push(state, event)
 
     if queue_big_enough_to_flush?(queue),
@@ -71,15 +49,30 @@ defmodule Riemannx.Connections.Batch do
   def handle_info(:flush, state), do: {:noreply, flush(state)}
 
   # a previous flush is finished, check if anyone requested another one in the meantime
-  def handle_info({:DOWN, ref, :process, _, _}, state = %__MODULE__{flush_ref: ref}),
-    do: {:noreply, state |> clear_ongoing_flush() |> flush_if_pending()}
+  def handle_info(
+        {:DOWN, ref, :process, _, _},
+        state = %__MODULE__{flush_ref: ref}
+      ),
+      do: {:noreply, state |> clear_ongoing_flush() |> flush_if_pending()}
 
   def handle_info(_, state), do: {:noreply, state}
 
   # ===========================================================================
   # Private
   # ===========================================================================
-  defp flush(items) when is_list(items) do
+  defp flush(items, :udp) when is_list(items) do
+    Enum.each(items, fn item ->
+      [events: item]
+      |> Msg.new()
+      |> Msg.encode()
+      |> module().send_async()
+    end)
+
+    Process.send_after(self(), :flush, queue_interval())
+    nil
+  end
+
+  defp flush(items, _) when is_list(items) do
     batch =
       Enum.flat_map(items, fn item ->
         item
@@ -90,10 +83,10 @@ defmodule Riemannx.Connections.Batch do
         [events: batch]
         |> Msg.new()
         |> Msg.encode()
-        |> batch_module().send_async()
+        |> module().send_async()
       end)
 
-    Process.send_after(self(), :flush, batch_interval())
+    Process.send_after(self(), :flush, queue_interval())
     ref
   end
 
@@ -105,8 +98,8 @@ defmodule Riemannx.Connections.Batch do
   defp flush(state = %__MODULE__{queue: queue}) do
     # the queue can grow larger than the configured batch size while we're waiting;
     # if the remaining part is still big enough to flush, we'll do it right after this flush proc exits
-    {flush_window, remaining} = queue |> Enum.split(batch_size())
-    ref = flush_window |> flush()
+    {flush_window, remaining} = queue |> Enum.split(queue_size())
+    ref = flush_window |> flush(type())
     remaining_queue = Qex.new(remaining)
 
     %__MODULE__{
@@ -118,7 +111,9 @@ defmodule Riemannx.Connections.Batch do
     }
   end
 
-  defp flush_if_pending(state = %__MODULE__{pending_flush: true}), do: flush(state)
+  defp flush_if_pending(state = %__MODULE__{pending_flush: true}),
+    do: flush(state)
+
   defp flush_if_pending(state), do: state
 
   defp clear_ongoing_flush(state = %__MODULE__{}),
@@ -128,7 +123,5 @@ defmodule Riemannx.Connections.Batch do
     %__MODULE__{state | queue: Qex.push(queue, event)}
   end
 
-  defp queue_size(queue), do: Enum.count(queue)
-
-  defp queue_big_enough_to_flush?(queue), do: queue_size(queue) >= batch_size()
+  defp queue_big_enough_to_flush?(queue), do: Enum.count(queue) >= queue_size()
 end

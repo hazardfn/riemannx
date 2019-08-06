@@ -1,6 +1,5 @@
 defmodule Riemannx.Application do
   @moduledoc false
-  alias Riemannx.Connections.Batch
   import Riemannx.Settings
   require Logger
   use Application
@@ -9,20 +8,19 @@ defmodule Riemannx.Application do
   # Application API
   # ===========================================================================
   def start(_type, _args) do
-    type = {type(), batch_type()}
-
     children =
-      case type do
-        {:batch, t} when t in [:combined, :tcp, :udp, :tls] ->
-          Batch.start_link([])
-          if t == :combined, do: combined_pool(), else: single_pool(t)
+      case type() do
+        t when t == :combined ->
+          combined_pool()
 
-        {t, _} when t in [:combined, :tcp, :udp, :tls] ->
-          if t == :combined, do: combined_pool(), else: single_pool(t)
+        t when t in [:tcp, :udp, :tls] ->
+          single_pool(t)
 
         t ->
-          raise("Type combination not supported #{inspect(t)}")
+          raise("Type not supported #{inspect(t)}")
       end
+
+    children = children ++ maybe_queue(queue_opts())
 
     opts = [
       strategy: :one_for_one,
@@ -36,6 +34,15 @@ defmodule Riemannx.Application do
   # ===========================================================================
   # Private
   # ===========================================================================
+  defp maybe_queue(opts) do
+    [
+      %{
+        id: :riemannx_queue,
+        start: {queue_module(), :start_link, [opts]}
+      }
+    ]
+  end
+
   defp single_pool(t) do
     poolboy_config = [
       name: {:local, pool_name(t)},
