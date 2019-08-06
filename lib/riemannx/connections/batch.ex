@@ -34,6 +34,13 @@ defmodule Riemannx.Connections.Batch do
 
   @behaviour Riemannx.Connection
 
+  defstruct [
+    :queue,
+    {:pending_flush, false},
+    {:ongoing_flush, false},
+    :flush_ref
+  ]
+
   # ===========================================================================
   # API
   # ===========================================================================
@@ -45,24 +52,29 @@ defmodule Riemannx.Connections.Batch do
   # GenStage Callbacks
   # ===========================================================================
   def start_link([]) do
-    GenServer.start_link(__MODULE__, Qex.new(), name: __MODULE__)
+    GenServer.start_link(__MODULE__, nil, name: __MODULE__)
   end
 
-  def init(queue) do
+  def init(_) do
     Process.send_after(self(), :flush, batch_interval())
-    {:ok, queue}
+    {:ok, %__MODULE__{queue: Qex.new()}}
   end
 
-  def handle_cast({:push, event}, queue) do
-    queue = Qex.push(queue, event)
+  def handle_cast({:push, event}, state) do
+    state = %__MODULE__{queue: queue} = push(state, event)
 
-    if Enum.count(queue) >= batch_size(),
-      do: {:noreply, flush(queue)},
-      else: {:noreply, queue}
+    if queue_big_enough_to_flush?(queue),
+      do: {:noreply, flush(state)},
+      else: {:noreply, state}
   end
 
-  def handle_info(:flush, queue), do: {:noreply, flush(queue)}
-  def handle_info(_, queue), do: {:noreply, queue}
+  def handle_info(:flush, state), do: {:noreply, flush(state)}
+
+  # a previous flush is finished, check if anyone requested another one in the meantime
+  def handle_info({:DOWN, ref, :process, _, _}, state = %__MODULE__{flush_ref: ref}),
+    do: {:noreply, state |> clear_ongoing_flush() |> flush_if_pending()}
+
+  def handle_info(_, state), do: {:noreply, state}
 
   # ===========================================================================
   # Private
@@ -73,16 +85,50 @@ defmodule Riemannx.Connections.Batch do
         item
       end)
 
-    [events: batch]
-    |> Msg.new()
-    |> Msg.encode()
-    |> batch_module().send_async()
+    {_, ref} =
+      spawn_monitor(fn ->
+        [events: batch]
+        |> Msg.new()
+        |> Msg.encode()
+        |> batch_module().send_async()
+      end)
 
     Process.send_after(self(), :flush, batch_interval())
+    ref
   end
 
-  defp flush(queue) do
-    queue |> Enum.to_list() |> flush()
-    Qex.new()
+  defp flush(state = %__MODULE__{ongoing_flush: true}) do
+    # try again when the flush is done
+    %__MODULE__{state | pending_flush: true}
   end
+
+  defp flush(state = %__MODULE__{queue: queue}) do
+    # the queue can grow larger than the configured batch size while we're waiting;
+    # if the remaining part is still big enough to flush, we'll do it right after this flush proc exits
+    {flush_window, remaining} = queue |> Enum.split(batch_size())
+    ref = flush_window |> flush()
+    remaining_queue = Qex.new(remaining)
+
+    %__MODULE__{
+      state
+      | pending_flush: queue_big_enough_to_flush?(remaining_queue),
+        ongoing_flush: true,
+        flush_ref: ref,
+        queue: remaining_queue
+    }
+  end
+
+  defp flush_if_pending(state = %__MODULE__{pending_flush: true}), do: flush(state)
+  defp flush_if_pending(state), do: state
+
+  defp clear_ongoing_flush(state = %__MODULE__{}),
+    do: %__MODULE__{state | ongoing_flush: false, flush_ref: nil}
+
+  defp push(state = %__MODULE__{queue: queue}, event) do
+    %__MODULE__{state | queue: Qex.push(queue, event)}
+  end
+
+  defp queue_size(queue), do: Enum.count(queue)
+
+  defp queue_big_enough_to_flush?(queue), do: queue_size(queue) >= batch_size()
 end
