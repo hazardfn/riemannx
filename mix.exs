@@ -1,13 +1,13 @@
 defmodule Riemannx.Mixfile do
   use Mix.Project
 
-  @version "4.1.0"
+  @version "4.1.1"
 
   def project do
     [
       app: :riemannx,
       version: @version,
-      elixir: "~> 1.3",
+      elixir: "~> 1.7",
       package: package(),
       description: "A riemann client for elixir with UDP/TCP/TLS support.",
       deps: deps(),
@@ -56,14 +56,14 @@ defmodule Riemannx.Mixfile do
 
   defp deps do
     [
-      {:exprotobuf, "~> 1.2.9"},
+      {:exprotobuf, "~> 1.2.17"},
       {:poolboy, "~> 1.5"},
-      {:excoveralls, "~> 0.7", only: [:test]},
-      {:ex_doc, "~> 0.12", only: [:dev], runtime: false},
-      {:propcheck, "~> 1.0.4", only: :test},
-      {:dialyxir, "~> 0.5", only: [:dev, :test], runtime: false},
-      {:credo, "~> 0.9.0-rc2", only: [:dev, :test], runtime: false},
-      {:qex, "~> 0.3.4"}
+      {:excoveralls, "~> 0.11", only: [:test]},
+      {:ex_doc, "~> 0.21", only: [:dev], runtime: false},
+      {:propcheck, "~> 1.1.5", only: :test},
+      {:dialyxir, "~> 1.0.0-rc.6", only: [:dev, :test], runtime: false},
+      {:credo, "~> 1.1.2", only: [:dev, :test], runtime: false},
+      {:qex, "~> 0.5.0"}
     ]
   end
 
