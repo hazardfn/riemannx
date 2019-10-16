@@ -71,14 +71,22 @@ defmodule Riemannx.Connections.Batch do
   def handle_info(:flush, state), do: {:noreply, flush(state)}
 
   # a previous flush is finished, check if anyone requested another one in the meantime
-  def handle_info({:DOWN, ref, :process, _, _}, state = %__MODULE__{flush_ref: ref}),
-    do: {:noreply, state |> clear_ongoing_flush() |> flush_if_pending()}
+  def handle_info(
+        {:DOWN, ref, :process, _, _},
+        state = %__MODULE__{flush_ref: ref}
+      ),
+      do: {:noreply, state |> clear_ongoing_flush() |> flush_if_pending()}
 
   def handle_info(_, state), do: {:noreply, state}
 
   # ===========================================================================
   # Private
   # ===========================================================================
+  defp flush([]) do
+    Process.send_after(self(), :flush, batch_interval())
+    nil
+  end
+
   defp flush(items) when is_list(items) do
     batch =
       Enum.flat_map(items, fn item ->
@@ -118,7 +126,9 @@ defmodule Riemannx.Connections.Batch do
     }
   end
 
-  defp flush_if_pending(state = %__MODULE__{pending_flush: true}), do: flush(state)
+  defp flush_if_pending(state = %__MODULE__{pending_flush: true}),
+    do: flush(state)
+
   defp flush_if_pending(state), do: state
 
   defp clear_ongoing_flush(state = %__MODULE__{}),
