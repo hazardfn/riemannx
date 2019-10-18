@@ -89,17 +89,11 @@ defmodule Riemannx.Connections.Batch do
 
   defp flush(items) when is_list(items) do
     batch =
-      Enum.flat_map(items, fn item ->
-        item
-      end)
+      items
+      |> Enum.flat_map(fn item -> item end)
+      |> Enum.reject(fn item -> item == [] end)
 
-    {_, ref} =
-      spawn_monitor(fn ->
-        [events: batch]
-        |> Msg.new()
-        |> Msg.encode()
-        |> batch_module().send_async()
-      end)
+    ref = if batch == [], do: nil, else: do_spawn(batch)
 
     Process.send_after(self(), :flush, batch_interval())
     ref
@@ -120,7 +114,7 @@ defmodule Riemannx.Connections.Batch do
     %__MODULE__{
       state
       | pending_flush: queue_big_enough_to_flush?(remaining_queue),
-        ongoing_flush: true,
+        ongoing_flush: ref != nil,
         flush_ref: ref,
         queue: remaining_queue
     }
@@ -141,4 +135,16 @@ defmodule Riemannx.Connections.Batch do
   defp queue_size(queue), do: Enum.count(queue)
 
   defp queue_big_enough_to_flush?(queue), do: queue_size(queue) >= batch_size()
+
+  defp do_spawn(batch) do
+    {_, ref} =
+      spawn_monitor(fn ->
+        [events: batch]
+        |> Msg.new()
+        |> Msg.encode()
+        |> batch_module().send_async()
+      end)
+
+    ref
+  end
 end
