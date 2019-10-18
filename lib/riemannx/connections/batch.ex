@@ -82,11 +82,6 @@ defmodule Riemannx.Connections.Batch do
   # ===========================================================================
   # Private
   # ===========================================================================
-  defp flush([]) do
-    Process.send_after(self(), :flush, batch_interval())
-    nil
-  end
-
   defp flush(items) when is_list(items) do
     batch =
       items
