@@ -86,9 +86,11 @@ defmodule Riemannx.Connections.Batch do
     batch =
       items
       |> Enum.flat_map(fn item -> item end)
-      |> Enum.reject(fn item -> item == [] end)
 
     ref = if batch == [], do: nil, else: do_spawn(batch)
+
+    IO.puts("REF: #{inspect(ref)}")
+    IO.puts("BATCH: #{inspect(batch)}")
 
     Process.send_after(self(), :flush, batch_interval())
     ref

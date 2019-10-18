@@ -3,11 +3,13 @@ defmodule RiemannxTest.Property.RiemannXPropTest do
   alias Riemannx.Proto.Msg
 
   def events do
-    list(
-      service: elixir_string(),
-      metric: integer(),
-      attributes: list({atom(), atom()}),
-      description: elixir_string()
+    non_empty(
+      list(
+        service: elixir_string(),
+        metric: integer(),
+        attributes: list({atom(), atom()}),
+        description: elixir_string()
+      )
     )
   end
 

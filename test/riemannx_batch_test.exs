@@ -190,6 +190,23 @@ defmodule RiemannxTest.Batch do
     )
   end
 
+  property "Regression can send after waiting for first flush", [:verbose] do
+    Application.stop(:riemannx)
+    Application.ensure_all_started(:riemannx)
+
+    # Wait for first flush
+    :timer.sleep(batch_interval() + 100)
+
+    numtests(
+      100,
+      forall events in Prop.encoded_events() do
+        events = Prop.deconstruct_events(events)
+        :ok = Riemannx.send_async(events)
+        __MODULE__.assert_events_received(events) == true
+      end
+    )
+  end
+
   def refute_events_received do
     receive do
       {<<>>, :udp} -> refute_events_received()
