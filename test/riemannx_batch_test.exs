@@ -10,6 +10,31 @@ defmodule RiemannxTest.Batch do
   alias Riemannx.Proto.Event
   require IEx
 
+  @test_event_1 [
+    service: "riemannx-elixir",
+    metric: 1,
+    attributes: [a: 1],
+    description: "test"
+  ]
+
+  @test_event_2 [
+    service: "riemann-elixir-2",
+    metric: 1.123,
+    attributes: [a: 1, b: 2],
+    description: "hurr durr dee durr"
+  ]
+
+  @test_event_3 [
+    service: "riemann-elixir-3",
+    metric: 5.123,
+    description: "hurr durr dee durr derp"
+  ]
+
+  @test_event_4 [
+    service: "riemann-elixir-4",
+    state: "ok"
+  ]
+
   setup_all do
     Application.load(:riemannx)
     Application.put_env(:riemannx, :type, :batch)
@@ -36,40 +61,16 @@ defmodule RiemannxTest.Batch do
   end
 
   test "send_async/1 can send an event" do
-    event = [
-      service: "riemannx-elixir",
-      metric: 1,
-      attributes: [a: 1],
-      description: "test"
-    ]
-
-    Riemannx.send_async(event)
-    assert_events_received(event)
+    Riemannx.send_async(@test_event_1)
+    assert_events_received(@test_event_1)
   end
 
   test "send_async/1 can send multiple events" do
     events = [
-      [
-        service: "riemann-elixir",
-        metric: 1,
-        attributes: [a: 1],
-        description: "hurr durr"
-      ],
-      [
-        service: "riemann-elixir-2",
-        metric: 1.123,
-        attributes: [a: 1, b: 2],
-        description: "hurr durr dee durr"
-      ],
-      [
-        service: "riemann-elixir-3",
-        metric: 5.123,
-        description: "hurr durr dee durr derp"
-      ],
-      [
-        service: "riemann-elixir-4",
-        state: "ok"
-      ]
+      @test_event_1,
+      @test_event_2,
+      @test_event_3,
+      @test_event_4
     ]
 
     Riemannx.send_async(events)
@@ -78,27 +79,10 @@ defmodule RiemannxTest.Batch do
 
   test "The message is still sent given a small max_udp_size" do
     events = [
-      [
-        service: "riemann-elixir",
-        metric: 1,
-        attributes: [a: 1],
-        description: "hurr durr"
-      ],
-      [
-        service: "riemann-elixir-2",
-        metric: 1.123,
-        attributes: [a: 1, b: 2],
-        description: "hurr durr dee durr"
-      ],
-      [
-        service: "riemann-elixir-3",
-        metric: 5.123,
-        description: "hurr durr dee durr derp"
-      ],
-      [
-        service: "riemann-elixir-4",
-        state: "ok"
-      ]
+      @test_event_1,
+      @test_event_2,
+      @test_event_3,
+      @test_event_4
     ]
 
     Utils.update_setting(:udp, :max_size, 1)
@@ -107,14 +91,14 @@ defmodule RiemannxTest.Batch do
   end
 
   test "Queries are forwarded via TCP" do
-    event = [
-      service: "riemannx-elixir",
-      metric: 1,
-      attributes: [a: 1],
-      description: "test"
-    ]
+    event =
+      @test_event_1
+      |> Riemannx.create_events_msg()
+      |> Msg.decode()
+      |> Map.get(:events)
 
-    event = Msg.decode(Riemannx.create_events_msg(event)).events
+    #event = Msg.decode(Riemannx.create_events_msg(@test_event_1)).events
+
     msg = Msg.new(ok: true, events: event)
     msg = Msg.encode(msg)
 
@@ -124,13 +108,7 @@ defmodule RiemannxTest.Batch do
   end
 
   test "Batching with a high interval won't send unless the size is exceeded" do
-    event = [
-      service: "riemannx-elixir",
-      metric: 1,
-      attributes: [a: 1],
-      description: "test"
-    ]
-
+    event = @test_event_1
     Utils.update_batch_setting(:size, 10)
     Utils.update_batch_setting(:interval, {60, :minutes})
     GenServer.stop(Batch)
@@ -148,13 +126,7 @@ defmodule RiemannxTest.Batch do
   end
 
   test "Batching will still send events at the right interval even if the size is not reached" do
-    event = [
-      service: "riemannx-elixir",
-      metric: 1,
-      attributes: [a: 1],
-      description: "test"
-    ]
-
+    event = @test_event_1
     Utils.update_batch_setting(:size, 10)
     Utils.update_batch_setting(:interval, {500, :milliseconds})
     GenServer.stop(Batch)
@@ -166,6 +138,25 @@ defmodule RiemannxTest.Batch do
 
     events = Enum.map(1..9, fn _ -> event end)
     assert assert_events_received(events, 1000)
+  end
+
+  test "Regression can send after waiting for first flush" do
+    batch_number = 10
+    events = [
+      @test_event_1,
+      @test_event_2,
+      @test_event_3,
+      @test_event_4
+    ]
+
+    Application.stop(:riemannx)
+    Application.ensure_all_started(:riemannx)
+
+    for _ <- 1..batch_number do
+      for e <- events, do: Riemannx.send_async(e)
+      assert assert_events_received(events, 1000)
+      :timer.sleep(batch_interval() + 100)
+    end
   end
 
   property "All reasonable metrics async", [:verbose] do
@@ -185,23 +176,6 @@ defmodule RiemannxTest.Batch do
       forall events in Prop.encoded_events() do
         events = Prop.deconstruct_events(events)
         :ok = Riemannx.send(events)
-        __MODULE__.assert_events_received(events) == true
-      end
-    )
-  end
-
-  property "Regression can send after waiting for first flush", [:verbose] do
-    Application.stop(:riemannx)
-    Application.ensure_all_started(:riemannx)
-
-    # Wait for first flush
-    :timer.sleep(batch_interval() + 100)
-
-    numtests(
-      100,
-      forall events in Prop.encoded_events() do
-        events = Prop.deconstruct_events(events)
-        :ok = Riemannx.send_async(events)
         __MODULE__.assert_events_received(events) == true
       end
     )
