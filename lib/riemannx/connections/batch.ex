@@ -82,15 +82,16 @@ defmodule Riemannx.Connections.Batch do
   # ===========================================================================
   # Private
   # ===========================================================================
+  defp flush([]) do
+    Process.send_after(self(), :flush, batch_interval())
+    nil
+  end
+
   defp flush(items) when is_list(items) do
-    batch =
+    ref =
       items
       |> Enum.flat_map(fn item -> item end)
-
-    ref = if batch == [], do: nil, else: do_spawn(batch)
-
-    IO.puts("REF: #{inspect(ref)}")
-    IO.puts("BATCH: #{inspect(batch)}")
+      |> do_spawn()
 
     Process.send_after(self(), :flush, batch_interval())
     ref
