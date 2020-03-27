@@ -27,8 +27,10 @@ defmodule Riemannx.Connections.Batch do
   module. They are not batched or put in the queue.
   ```
   """
+
   import Riemannx.Settings
   import Kernel, except: [send: 2]
+  alias Riemannx.Connections.BatchQueue
   alias Riemannx.Proto.Msg
   alias __MODULE__
   use GenServer
@@ -37,7 +39,6 @@ defmodule Riemannx.Connections.Batch do
 
   defstruct [
     :queue,
-    {:size, 0},
     {:pending_flush, false},
     {:ongoing_flush, false},
     :flush_ref
@@ -59,13 +60,13 @@ defmodule Riemannx.Connections.Batch do
 
   def init(_) do
     Process.send_after(self(), :flush, batch_interval())
-    {:ok, %Batch{queue: Qex.new(), size: 0}}
+    {:ok, %Batch{queue: BatchQueue.new()}}
   end
 
   def handle_cast({:push, event}, state) do
-    state = %Batch{queue: queue, size: size} = push(state, event)
+    state = %Batch{queue: queue} = push(state, event)
 
-    if queue_big_enough_to_flush?(size),
+    if BatchQueue.batch_available?(queue),
       do: {:noreply, flush(state)},
       else: {:noreply, state}
   end
@@ -104,26 +105,18 @@ defmodule Riemannx.Connections.Batch do
     %Batch{state | pending_flush: true}
   end
 
-  defp flush(state = %Batch{queue: queue, size: size}) do
+  defp flush(state = %Batch{queue: queue}) do
     # the queue can grow larger than the configured batch size while we're waiting;
-    # if the remaining part is still big enough to flush, we'll do it right after this flush proc exits
-    batch_size = batch_size()
-    {flush_window, remaining} = Enum.split(queue, batch_size)
-    ref = flush_window |> flush()
-    remaining_queue = Qex.new(remaining)
-    remaining_size =
-      case remaining do
-        [] -> 0
-        _ -> size - batch_size
-      end
-
+    # if the remaining part is still big enough to flush, we'll do it right after
+    # this flush proc exits
+    {:ok, {remaining_queue, batch}} = BatchQueue.get_batch(queue)
+    ref = flush(batch)
     %Batch{
       state
-      | pending_flush: queue_big_enough_to_flush?(remaining_size),
+      | pending_flush: BatchQueue.batch_available?(queue),
         ongoing_flush: ref != nil,
         flush_ref: ref,
         queue: remaining_queue,
-        size: remaining_size
     }
   end
 
@@ -135,10 +128,8 @@ defmodule Riemannx.Connections.Batch do
   defp clear_ongoing_flush(state = %Batch{}),
     do: %Batch{state | ongoing_flush: false, flush_ref: nil}
 
-  defp push(state = %Batch{queue: queue, size: size}, event),
-    do: %Batch{state | queue: Qex.push(queue, event), size: size + 1}
-
-  defp queue_big_enough_to_flush?(size), do: size >= batch_size()
+  defp push(state = %Batch{queue: queue}, event),
+    do: %Batch{state | queue: BatchQueue.push(queue, event)}
 
   defp do_spawn(batch) do
     {_, ref} =

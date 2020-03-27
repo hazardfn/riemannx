@@ -118,7 +118,6 @@ defmodule RiemannxTest.Batch do
       Riemannx.send_async(event)
     end)
 
-    assert_queue_size() == true
     refute assert_events_received(event, 5000)
     Riemannx.send_async(event)
 
@@ -138,7 +137,6 @@ defmodule RiemannxTest.Batch do
     end)
 
     events = Enum.map(1..9, fn _ -> event end)
-    assert_queue_size() == true
     assert assert_events_received(events, 1000)
   end
 
@@ -156,7 +154,6 @@ defmodule RiemannxTest.Batch do
 
     for _ <- 1..batch_number do
       for e <- events, do: Riemannx.send_async(e)
-      assert_queue_size() == true
       assert assert_events_received(events, 1000)
       :timer.sleep(batch_interval() + 100)
     end
@@ -227,10 +224,5 @@ defmodule RiemannxTest.Batch do
     after
       10_000 -> false
     end
-  end
-
-  def assert_queue_size do
-    %{queue: queue, size: size} = :sys.get_state(Batch)
-    size == Enum.count(queue)
   end
 end
