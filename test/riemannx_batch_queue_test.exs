@@ -24,7 +24,7 @@ defmodule RiemannxTest.BatchQueue do
     assert batch == batch1
 
     ## Add more events and test second batch
-    q3 = Enum.reduce(events1, q2, push_fun)
+    q3 = Enum.reduce(events2, q2, push_fun)
     {:ok, {_q4, batch}} = Queue.get_batch(q3)
     assert batch == batch2
   end
