@@ -159,6 +159,8 @@ defmodule Riemannx.Connections.Batch do
     too big as everything is precalculated on a smaller queue (buffer)
     """
 
+    require Logger
+
     alias Riemannx.Settings
     alias __MODULE__
 
@@ -167,6 +169,7 @@ defmodule Riemannx.Connections.Batch do
       {:buffer_size, 0},
       {:batches, Qex.new()},
       {:batch_count, 0},
+      {:drop_count, 0}
     ]
 
     # ===========================================================================
@@ -174,15 +177,7 @@ defmodule Riemannx.Connections.Batch do
     # ===========================================================================
     def new, do: %Queue{}
 
-    def push(%{buffer: buffer, buffer_size: size} = queue, event) do
-      nqueue = %{
-        queue |
-        buffer: Qex.push(buffer, event),
-        buffer_size: size + 1
-      }
-
-      create_batch_maybe(nqueue)
-    end
+    def push(queue, event), do: push(queue, event, Settings.batch_limit())
 
     def get_batch(
       %{buffer: buffer, batches: batches, batch_count: count} = queue
@@ -211,6 +206,22 @@ defmodule Riemannx.Connections.Batch do
     # ===========================================================================
     # Private
     # ===========================================================================
+    defp push(%{batch_count: count, drop_count: dcount} = queue, _event, limit)
+    when count >= limit,
+      do: %{queue | drop_count: dcount + 1}
+
+    defp push(%{buffer: buffer, buffer_size: size} = queue, event, _limit) do
+      nqueue = %{
+        queue |
+        buffer: Qex.push(buffer, event),
+        buffer_size: size + 1
+      }
+
+      nqueue
+      |> create_batch_maybe()
+      |> report_dropped_maybe()
+    end
+
     defp create_batch_maybe(nqueue),
       do: create_batch_maybe(nqueue, Settings.batch_size())
 
@@ -233,6 +244,13 @@ defmodule Riemannx.Connections.Batch do
     end
 
     defp create_batch_maybe(queue, _bsize), do: queue
+
+    defp report_dropped_maybe(%{drop_count: dcount} = queue) when dcount > 0 do
+      Logger.warn("Riemannx: Dropped #{dcount} events due to overloading")
+      %{queue | drop_count: 0}
+    end
+
+    defp report_dropped_maybe(queue), do: queue
 
   end
 
