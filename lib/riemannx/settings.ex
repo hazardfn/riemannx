@@ -159,6 +159,16 @@ defmodule Riemannx.Settings do
   def batch_size, do: settings_module().batch_size()
 
   @doc """
+  Returns the batch limit for queued batches to be send.
+
+  NOTE: If the limit is reached new events are dropped
+
+  Default: infinity
+  """
+  @spec batch_limit() :: integer() | :infinity
+  def batch_limit, do: settings_module().batch_limit()
+
+  @doc """
   Returns the batch interval.
 
   Default: {1, :minutes}

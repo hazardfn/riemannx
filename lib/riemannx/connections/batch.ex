@@ -159,13 +159,17 @@ defmodule Riemannx.Connections.Batch do
     too big as everything is precalculated on a smaller queue (buffer)
     """
 
+    require Logger
+
     alias Riemannx.Settings
     alias __MODULE__
 
     defstruct [
       {:buffer, Qex.new()},
       {:buffer_size, 0},
-      {:batches, Qex.new()}
+      {:batches, Qex.new()},
+      {:batch_count, 0},
+      {:drop_count, 0}
     ]
 
     # ===========================================================================
@@ -173,17 +177,11 @@ defmodule Riemannx.Connections.Batch do
     # ===========================================================================
     def new, do: %Queue{}
 
-    def push(%{buffer: buffer, buffer_size: size} = queue, event) do
-      nqueue = %{
-        queue |
-        buffer: Qex.push(buffer, event),
-        buffer_size: size + 1
-      }
+    def push(queue, event), do: push(queue, event, Settings.batch_limit())
 
-      create_batch_maybe(nqueue)
-    end
-
-    def get_batch(%{buffer: buffer, batches: batches} = queue) do
+    def get_batch(
+      %{buffer: buffer, batches: batches, batch_count: count} = queue
+    ) do
       case Qex.pop(batches) do
         {:empty, _} ->
           batch = Enum.to_list(buffer)
@@ -195,35 +193,64 @@ defmodule Riemannx.Connections.Batch do
           {:ok, {nqueue, batch}}
         {{:value, batch}, nbatches} ->
           nqueue = %{
-          queue |
-          batches: nbatches
-        }
+            queue |
+            batches: nbatches,
+            batch_count: count - 1
+          }
           {:ok, {nqueue, batch}}
       end
     end
 
-    def batch_available?(%{batches: batches}), do: not Enum.empty?(batches)
+    def batch_available?(%{batch_count: count}), do: count > 0
 
     # ===========================================================================
     # Private
     # ===========================================================================
+    defp push(%{batch_count: count, drop_count: dcount} = queue, _event, limit)
+    when count >= limit,
+      do: %{queue | drop_count: dcount + 1}
+
+    defp push(%{buffer: buffer, buffer_size: size} = queue, event, _limit) do
+      nqueue = %{
+        queue |
+        buffer: Qex.push(buffer, event),
+        buffer_size: size + 1
+      }
+
+      nqueue
+      |> create_batch_maybe()
+      |> report_dropped_maybe()
+    end
+
     defp create_batch_maybe(nqueue),
       do: create_batch_maybe(nqueue, Settings.batch_size())
 
-
     defp create_batch_maybe(
-      %{buffer_size: size, buffer: buffer, batches: batches} = queue,
+      %{
+        buffer_size: size,
+        buffer: buffer,
+        batches: batches,
+        batch_count: count
+      } = queue,
       bsize
     ) when size >= bsize do
       %{
         queue |
         buffer: Qex.new(),
         buffer_size: 0,
-        batches: Qex.push(batches, Enum.to_list(buffer))
+        batches: Qex.push(batches, Enum.to_list(buffer)),
+        batch_count: count + 1
       }
     end
 
     defp create_batch_maybe(queue, _bsize), do: queue
+
+    defp report_dropped_maybe(%{drop_count: dcount} = queue) when dcount > 0 do
+      Logger.warn("Riemannx: Dropped #{dcount} events due to overloading")
+      %{queue | drop_count: 0}
+    end
+
+    defp report_dropped_maybe(queue), do: queue
 
   end
 

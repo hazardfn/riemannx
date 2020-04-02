@@ -62,6 +62,9 @@ defmodule Riemannx.Settings.Default do
   @spec batch_size() :: integer()
   def batch_size, do: extract_batch(:size, 100)
 
+  @spec batch_limit() :: integer() | :infinity
+  def batch_limit, do: extract_batch(:limit, :infinity)
+
   @spec batch_interval() :: integer()
   def batch_interval, do: interval(extract_batch(:interval, {10, :seconds}))
   defp interval({x, :minutes}), do: interval({x * 60, :seconds})

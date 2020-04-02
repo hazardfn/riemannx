@@ -107,7 +107,8 @@ config :riemannx, [
   batch_settings: [
     type: :combined # The underlying connection to use when using batching.
     size: 50, # The size of batches to send to riemann.
-    interval: {1, :seconds} # The interval at which to send batches.
+    interval: {1, :seconds}, # The interval at which to send batches.
+    limit: :infinity # The max limit of batches allowed in the batching queue
   ]
   tcp: [
     port: 5555,
@@ -248,6 +249,8 @@ Batching as of 4.0.0 is the default connection behaviour - the default batch siz
 * Batches will be dropped if no workers are available to handle the batch unless `checkout_timer` is set to `:infinity`
 
 There is a new type called `:batch` and a settings key called `batch_settings:`, inside batch_settings you can specify a type for the underlying connection (`:tcp`, `:udp`, `:combined`, `:tls`). As always combined is the default.
+
+Optionally, a batch limit number can be specified (`:limit`). If set, once the batching queue has the specified amount of batches, that is `limit * batch_size` events, new events will be dropped until at least one batch is sent. Default value is `:infinity`
 
 ### Micro Time<a name="micro-time"></a>
 
