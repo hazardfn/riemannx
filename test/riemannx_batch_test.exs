@@ -97,7 +97,7 @@ defmodule RiemannxTest.Batch do
       |> Msg.decode()
       |> Map.get(:events)
 
-    #event = Msg.decode(Riemannx.create_events_msg(@test_event_1)).events
+    # event = Msg.decode(Riemannx.create_events_msg(@test_event_1)).events
 
     msg = Msg.new(ok: true, events: event)
     msg = Msg.encode(msg)
@@ -142,6 +142,7 @@ defmodule RiemannxTest.Batch do
 
   test "Regression can send after waiting for first flush" do
     batch_number = 10
+
     events = [
       @test_event_1,
       @test_event_2,

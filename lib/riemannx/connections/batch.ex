@@ -111,12 +111,13 @@ defmodule Riemannx.Connections.Batch do
     # this flush proc exits
     {:ok, {remaining_queue, batch}} = Queue.get_batch(queue)
     ref = flush(batch)
+
     %Batch{
       state
       | pending_flush: Queue.batch_available?(queue),
         ongoing_flush: ref != nil,
         flush_ref: ref,
-        queue: remaining_queue,
+        queue: remaining_queue
     }
   end
 
@@ -180,23 +181,27 @@ defmodule Riemannx.Connections.Batch do
     def push(queue, event), do: push(queue, event, Settings.batch_limit())
 
     def get_batch(
-      %{buffer: buffer, batches: batches, batch_count: count} = queue
-    ) do
+          %{buffer: buffer, batches: batches, batch_count: count} = queue
+        ) do
       case Qex.pop(batches) do
         {:empty, _} ->
           batch = Enum.to_list(buffer)
+
           nqueue = %{
-            queue |
-            buffer: Qex.new(),
-            buffer_size: 0
+            queue
+            | buffer: Qex.new(),
+              buffer_size: 0
           }
+
           {:ok, {nqueue, batch}}
+
         {{:value, batch}, nbatches} ->
           nqueue = %{
-            queue |
-            batches: nbatches,
-            batch_count: count - 1
+            queue
+            | batches: nbatches,
+              batch_count: count - 1
           }
+
           {:ok, {nqueue, batch}}
       end
     end
@@ -207,14 +212,14 @@ defmodule Riemannx.Connections.Batch do
     # Private
     # ===========================================================================
     defp push(%{batch_count: count, drop_count: dcount} = queue, _event, limit)
-    when count >= limit,
-      do: %{queue | drop_count: dcount + 1}
+         when count >= limit,
+         do: %{queue | drop_count: dcount + 1}
 
     defp push(%{buffer: buffer, buffer_size: size} = queue, event, _limit) do
       nqueue = %{
-        queue |
-        buffer: Qex.push(buffer, event),
-        buffer_size: size + 1
+        queue
+        | buffer: Qex.push(buffer, event),
+          buffer_size: size + 1
       }
 
       nqueue
@@ -226,20 +231,21 @@ defmodule Riemannx.Connections.Batch do
       do: create_batch_maybe(nqueue, Settings.batch_size())
 
     defp create_batch_maybe(
+           %{
+             buffer_size: size,
+             buffer: buffer,
+             batches: batches,
+             batch_count: count
+           } = queue,
+           bsize
+         )
+         when size >= bsize do
       %{
-        buffer_size: size,
-        buffer: buffer,
-        batches: batches,
-        batch_count: count
-      } = queue,
-      bsize
-    ) when size >= bsize do
-      %{
-        queue |
-        buffer: Qex.new(),
-        buffer_size: 0,
-        batches: Qex.push(batches, Enum.to_list(buffer)),
-        batch_count: count + 1
+        queue
+        | buffer: Qex.new(),
+          buffer_size: 0,
+          batches: Qex.push(batches, Enum.to_list(buffer)),
+          batch_count: count + 1
       }
     end
 
@@ -251,7 +257,5 @@ defmodule Riemannx.Connections.Batch do
     end
 
     defp report_dropped_maybe(queue), do: queue
-
   end
-
 end

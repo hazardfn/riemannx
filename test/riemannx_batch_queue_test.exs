@@ -9,7 +9,7 @@ defmodule RiemannxTest.BatchQueue do
     events1 = for i <- 1..1_000, do: i
     events2 = for i <- 1_000..2_000, do: i
     batch1 = for i <- 1..batch_size, do: i
-    batch2 = for i <- batch_size+1..2*batch_size, do: i
+    batch2 = for i <- (batch_size + 1)..(2 * batch_size), do: i
     push_fun = fn e, q -> Queue.push(q, e) end
 
     ## Fresh queue

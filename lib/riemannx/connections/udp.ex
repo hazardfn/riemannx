@@ -69,7 +69,12 @@ defmodule Riemannx.Connections.UDP do
   end
 
   def handle_cast(:init, _state) do
-    conn = %Connection{host: to_charlist(host()), port: port(:udp), options: options(:udp)}
+    conn = %Connection{
+      host: to_charlist(host()),
+      port: port(:udp),
+      options: options(:udp)
+    }
+
     udp_socket = udp_connect(conn)
     {:noreply, %{conn | socket: udp_socket}}
   end
@@ -90,7 +95,11 @@ defmodule Riemannx.Connections.UDP do
           :ok
 
         {:error, code} ->
-          e = [error: "#{__MODULE__} | Unable to send event: #{code}", message: msg]
+          e = [
+            error: "#{__MODULE__} | Unable to send event: #{code}",
+            message: msg
+          ]
+
           Kernel.send(self(), {:error, e})
           e
       end

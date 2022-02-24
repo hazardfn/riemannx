@@ -3,15 +3,22 @@ language: elixir
 elixir:
   - 1.7.4
   - 1.8.2
-  - 1.9.1
+  - 1.9.4
+  - 1.10.4
+  - 1.11.4
+  - 1.12.3
+  - 1.13.3
+
 sudo: false # to use faster container based build environment
 notifications:
   recipients:
     - howardbm@live.se
 otp_release:
-  - 20.3
-  - 21.3
-  - 22.0
+  - 20.3.8
+  - 21.3.8
+  - 22.3.4
+  - 23.3.4
+  - 24.2.1
 
 # Dialyzer has some problems with these versions in travis
 # Possibly related to: https://elixirforum.com/t/which-version-of-elixir-otp-erlang-can-we-use-with-dialyzer/17946/8
@@ -19,9 +26,35 @@ otp_release:
 jobs:
   exclude:
   - elixir: 1.7.4
-    otp_release: 21.3
+    otp_release: 21.3.8
   - elixir: 1.7.4
-    otp_release: 22.0
+    otp_release: 22.3.4
+  - elixir: 1.7.4
+    otp_release: 23.3.4
+  - elixir: 1.7.4
+    otp_release: 24.2.1
+  - elixir: 1.8.2
+    otp_release: 23.3.4
+  - elixir: 1.8.2
+    otp_release: 24.2.1
+  - elixir: 1.9.4
+    otp_release: 23.3.4
+  - elixir: 1.9.4
+    otp_release: 24.2.1
+  - elixir: 1.10.4
+    otp_release: 20.3.8
+  - elixir: 1.10.4
+    otp_release: 24.2.1
+  - elixir: 1.11.4
+    otp_release: 20.3.8
+  - elixir: 1.12.3
+    otp_release: 20.3.8
+  - elixir: 1.12.3
+    otp_release: 21.3.8
+  - elixir: 1.13.3
+    otp_release: 20.3.8
+  - elixir: 1.13.3
+    otp_release: 21.3.8
 
 env:
   - MIX_ENV=test

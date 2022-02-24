@@ -39,6 +39,7 @@ defmodule Riemannx.Mixfile do
     [
       included_applications: [:qex],
       applications: applications(Mix.env()),
+      extra_applications: [:ssl],
       mod: {Riemannx.Application, []}
     ]
   end
@@ -58,12 +59,12 @@ defmodule Riemannx.Mixfile do
     [
       {:exprotobuf, "~> 1.2.17"},
       {:poolboy, "~> 1.5"},
-      {:excoveralls, "~> 0.11", only: [:test]},
-      {:ex_doc, "~> 0.21", only: [:dev], runtime: false},
-      {:propcheck, "~> 1.1.5", only: :test},
-      {:dialyxir, "~> 1.0.0-rc.6", only: [:dev, :test], runtime: false},
-      {:credo, "~> 1.1.2", only: [:dev, :test], runtime: false},
-      {:qex, "~> 0.5.0"}
+      {:excoveralls, "~> 0.14", only: [:test]},
+      {:ex_doc, "~> 0.28", only: [:dev], runtime: false},
+      {:propcheck, "~> 1.4", only: :test},
+      {:dialyxir, "~> 1.1", only: [:dev, :test], runtime: false},
+      {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
+      {:qex, "~> 0.5"}
     ]
   end
 

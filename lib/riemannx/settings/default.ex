@@ -91,12 +91,17 @@ defmodule Riemannx.Settings.Default do
 
   @spec options(conn_type()) :: list()
   def options(:tls),
-    do: extract(:tls, :options, []) ++ [:binary, nodelay: true, packet: 4, active: true]
+    do:
+      extract(:tls, :options, []) ++
+        [:binary, nodelay: true, packet: 4, active: true]
 
   def options(:tcp),
-    do: extract(:tcp, :options, []) ++ [:binary, nodelay: true, packet: 4, active: true]
+    do:
+      extract(:tcp, :options, []) ++
+        [:binary, nodelay: true, packet: 4, active: true]
 
-  def options(:udp), do: extract(:udp, :options, []) ++ [:binary, sndbuf: max_udp_size()]
+  def options(:udp),
+    do: extract(:udp, :options, []) ++ [:binary, sndbuf: max_udp_size()]
 
   @spec events_host() :: binary()
   def events_host do

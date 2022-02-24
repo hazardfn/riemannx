@@ -18,7 +18,8 @@ defmodule RiemannxTest.Servers.TCP do
     {:ok, server}
   end
 
-  def set_response(response), do: GenServer.call(__MODULE__, {:response, response})
+  def set_response(response),
+    do: GenServer.call(__MODULE__, {:response, response})
 
   def stop do
     GenServer.call(__MODULE__, :cleanup)
